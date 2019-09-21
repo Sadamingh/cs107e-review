@@ -39,6 +39,14 @@ ARM 汇编语言：https://www.csie.ntu.edu.tw/~cyy/courses/assembly/09fall/lect
 
 Mac Installation Guide: http://cs107e.github.io/guides/mac_toolchain/
 
+Compiler Explorer: https://gcc.godbolt.org/
+
+Assignment:
+
+调整亮度，我们可以通过控制高电平时间和低电平时间比例来调整。
+
+GPIO 输出的电压是不能变化的，要么 3.3V，要么 0V。
+
 ## References
 
 - [pinout]
