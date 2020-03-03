@@ -7,6 +7,8 @@ http://cs107e.github.io/resources/
 CS107E: Raspberry Pi 1 Model A+, BCM 2835
 https://www.raspberrypi.org/products/raspberry-pi-1-model-a-plus/
 
+https://github.com/marwansalama94/cs107e-homeworks
+
 ## Setup
 
 http://cs107e.github.io/guides/install/
@@ -27,7 +29,7 @@ BCM 2835 手册勘误表：https://elinux.org/BCM2835_datasheet_errata#p96
 
 反汇编，对于 object 文件，直接使用 `arm-none-eabi-objdump --no-show-raw-insn -d input.o`，有时候会需要使用 `-m arm` 来指定 architecture。
 
-如果是 binary 文件，先使用 `arm-none-eabi-objcopy -I binary -O elf32-littlearm input.bin output.o` 得到 object 文件。
+如果是 binary 文件，使用 `arm-none-eabi-objdump -b binary -D -marm input.bin`。
 
 ARM 立即数的编码，实际上是 8 位的值加上 4 位的 rotate。
 https://alisdair.mcdiarmid.org/arm-immediate-value-encoding/#play-with-it
