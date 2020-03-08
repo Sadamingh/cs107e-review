@@ -4,7 +4,7 @@
   </h1>
 </div>
 
-My study note of the awesome course: [CS107E Winter 2020](http://cs107e.github.io/).
+My study note of the awesome course [CS107E Winter 2020](http://cs107e.github.io/).
 
 ## Table of Contents
 
@@ -15,7 +15,14 @@ My study note of the awesome course: [CS107E Winter 2020](http://cs107e.github.i
   * [Raspberry Pi](#raspberry-pi)
   * [ARM processor and architecture](#arm-processor-and-architecture)
   * [Assignment 0](#assignment-0)
-* [Week 2](#week-2)
+* [Week 2: ARM assembly and machine code](#week-2-arm-assembly-and-machine-code)
+  * [Lab1](#lab1)
+    * [Blink](#blink)
+    * [Button](#button)
+  * [Assignment1](#assignment1)
+    * [A simple Larson Scanner](#a-simple-larson-scanner)
+    * [Extended Larson Scanner](#extended-larson-scanner)
+  * [From Assembly to C](#from-assembly-to-c)
 * [Week 3](#week-3)
 * [ARM Tips](#arm-tips)
 
@@ -31,6 +38,9 @@ My study note of the awesome course: [CS107E Winter 2020](http://cs107e.github.i
 
 ### Raspberry Pi
 
+- [Pinout.xyz](https://pinout.xyz/): online website
+- [Pinout.pdf](http://cs107e.github.io/guides/images/pinout.pdf): PDF document
+
 The raspberry model we are gonna use is [Raspberry Pi 1 Model A+](https://www.raspberrypi.org/products/raspberry-pi-1-model-a-plus/).
 
 Must stick with this version otherwise the code might not work.
@@ -41,15 +51,15 @@ Check the manual here [BCM2835 Peripherals Specification](https://www.raspberryp
 
 You need to know that this manual __has a lot of errors__, must read it with [BCM 2835 Datasheet Errata](https://elinux.org/BCM2835_datasheet_errata#p96).
 
-NOTE: __The address in the manual `0x7E...` is the logic address, in the code we will change it to `0x20...`__.
-
-Useful links for Pi:
-
-- [Pinout](https://pinout.xyz/): GPIO Pinout guide
+NOTE: __The address in the manual `0x7E...` is the logic address. We will change it to `0x20...` in the code__.
 
 ### ARM processor and architecture
 
-First, we need to install the arm toolchain for our pi (compiler, assembler, linker, etc..) and the CP2012 driver. Check the [Installation Guide](http://cs107e.github.io/guides/install/).
+- [Intro to ARM assembly](http://www.toves.org/books/arm/)
+- [Awesome ARM tutorail from CSIE@NTU](https://www.csie.ntu.edu.tw/~cyy/courses/assembly/09fall/lectures/handouts/lec09_ARMisa.pdf)
+- [VisUAL](https://salmanarif.bitbucket.io/visual/index.html): Visual ARM emulator
+
+First, we need to install the arm toolchain for our Pi (compiler, assembler, linker, etc..) and the CP2012 driver. Check the [Installation Guide](http://cs107e.github.io/guides/install/).
 
 After installation, we should have bunch of `arm-none-eabi` tools.
 
@@ -94,33 +104,106 @@ tools can interoperate.
 
 So `none` menas we are not targeting any operating system here, aka we are in "bare metal". And `eabi` means the ABI for the ARM architecture.
 
-- [Intro to ARM assembly](http://www.toves.org/books/arm/)
-- [VisUAL](https://salmanarif.bitbucket.io/visual/index.html): Visual ARM emulator
-
 ### Assignment 0
 
-This is for the official students, I have nothing to do here.
+This is for the official students, I have nothing to do here 😜.
 
-## Week 2
+## Week 2: ARM assembly and machine code
 
-- 所有的 ARM 指令都可以条件执行
+[ARM Instruction Set Architecture](http://cs107e.github.io/readings/armisa.pdf).
 
-ARM 立即数的编码，实际上是 8 位的值加上 4 位的 rotate。
-https://alisdair.mcdiarmid.org/arm-immediate-value-encoding/#play-with-it
+From this documentation, we can know that __every ARM instruction can be conditionally executed__. This is a big difference from X86.
 
-ARM 指令集总设计：http://cs107e.github.io/readings/armisa.pdf
+[ARM immediate value encoding](https://alisdair.mcdiarmid.org/arm-immediate-value-encoding/#play-with-it).
 
-ARM 汇编语言：https://www.csie.ntu.edu.tw/~cyy/courses/assembly/09fall/lectures/handouts/lec09_ARMisa.pdf
+> The ARM instruction set encodes immediate values in an unusual way. It's typical of the design of the processor architecture: elegant, pragmatic, and quirky. Despite only using 12 bits of instruction space, the immediate value can represent a useful set of 32-bit constants.
 
-Mac Installation Guide: http://cs107e.github.io/guides/mac_toolchain/
+Basically, instead of using 12-bit to represent a number, ARM uses 8-bit for the number and 4-bit for rotating the number. By using this approch, it can represent a large set of useful 32-bit values.
 
-Compiler Explorer: https://gcc.godbolt.org/
+### Lab1
 
-Assignment:
+#### Blink
 
-调整亮度，我们可以通过控制高电平时间和低电平时间比例来调整。
+Let's give the world some light!
 
-GPIO 输出的电压是不能变化的，要么 3.3V，要么 0V。
+![](./images/blink.gif)
+
+#### Button
+
+Tada! 🎉 What a fun button ever! NOTE: We need to have a 10k pull-up resistor. If you are not familiar with this concept, this is a [fine explanation](https://learn.sparkfun.com/tutorials/pull-up-resistors/all).
+
+![](./images/button.gif)
+
+### Assignment1
+
+#### A simple Larson Scanner
+
+The simple Larson scanner is easy.
+
+1. Configure GPIO 20 ~ 27 to output mode
+2. Set current gpio pin for a while then clear it
+3. Update current gpio pin, need to handle the edge case
+4. Go back to step 2
+
+Here is the code [larson.s](./week2/assign1/larson.s).
+
+![](./images/larson.gif)
+
+#### Extended Larson Scanner
+
+First, we need a way to control brightness. I thought about directly configuring the output voltage for a GPIO pin but it seems impossible.
+
+So Let's do it the other way. We can control the time of the high level in a period to control the power supplied. The more power, the brighter LED. Actually this is a standard technique called [Pulse Width Modulation](https://en.wikipedia.org/wiki/Pulse-width_modulation).
+
+Let's try that, implement a simple test in [brightness.s](./week2/assign1/brightness.s).
+
+We decrease the duty cycle (time of high level in the period) for GPIO 20, 21 and 22 one by one and see if their brightness have any difference.
+
+![](./images/brightness.jpeg)
+
+Yes they do! So the implementation of extended Larson scanner is obvious now.
+
+Check the code [larson-extended.s](./week2/assign1/larson-extended.s).
+
+![](./images/larson-extended.gif)
+
+### From Assembly to C
+
+- [Compiler Explorer](https://gcc.godbolt.org): A neat interactive tool to see translation from C to assembly
+
+After writing some ARM assembly code and switching to using C, this is the first time I ever think that C is so so so superior and powerful!
+
+Long live C!
+
+> C is quirky, flawed, and an enormous success — Dennis Ritchie
+
+> C gives the programmer what the programmer wants; few
+restrictions, few complaints — Herbert Schildt
+
+> C: A language that combines all the elegance and power of assembly
+language with all the readability and maintainability of assembly
+language — Unknown
+
+A sample Makefile for compiling base-metal C for ARM:
+
+```makefile
+NAME = myprogram
+CFLAGS = -Og -Wall -std=c99 -ffreestanding
+LDFLAGS = -nostdlib -e main
+
+.PRECIOUS: %.elf %.o
+
+all : $(NAME).bin
+
+%.bin: %.elf
+	 arm-none-eabi-objcopy $< -O binary $@
+
+%.elf: %.o
+	 arm-none-eabi-ld $(LDFLAGS) $< -o $@
+
+%.o: %.c
+	 arm-none-eabi-gcc $(CFLAGS) -c $< -o $@
+```
 
 ## Week 3
 

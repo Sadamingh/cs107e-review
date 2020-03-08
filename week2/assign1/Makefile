@@ -1,4 +1,5 @@
-all : larson.bin larson-extended.bin brightness.bin
+all: larson.bin larson-extended.bin brightness.bin
+.PHONY: all
 
 %.bin: %.o
 	arm-none-eabi-objcopy $< -O binary $@
@@ -8,5 +9,3 @@ all : larson.bin larson-extended.bin brightness.bin
 
 clean:
 	rm -f *.o *.bin *~
-
-.PHONY: all

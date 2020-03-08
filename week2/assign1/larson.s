@@ -57,4 +57,3 @@ b loop
 FSEL2: .word 0x20200008
 SET0:  .word 0x2020001C
 CLR0:  .word 0x20200028
-

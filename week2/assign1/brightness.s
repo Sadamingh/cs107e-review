@@ -2,7 +2,7 @@
 
 .equ BRIGHT, 0b1
 .equ BRIGHT2, 0b111
-.equ BRIGHT3, 0b11111
+.equ BRIGHT3, 0b111111
 
 // set GPIO 20, 21, 22 to output
 ldr r0, FSEL2
