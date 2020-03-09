@@ -13,7 +13,7 @@ u32 timer_get_ticks(void) {
 
 void timer_delay_us(unsigned int usec) {
   u32 current = timer_get_ticks();
-  while((timer_get_ticks() - current) < usec) {}
+  while((timer_get_ticks() - current) < usec);
 }
 
 void timer_delay_ms(unsigned int msec) {

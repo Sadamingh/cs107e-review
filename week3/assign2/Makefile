@@ -2,7 +2,7 @@ ARMGNU ?= arm-none-eabi
 
 ASFLAGS = --warn --fatal-warnings
 CFLAGS = -g -Wall -Og -std=c99 -ffreestanding
-LDFLAGS = -nostdlib
+LDFLAGS = -nostdlib -L/usr/local/Cellar/arm-none-eabi/4.8.3-cs170e/lib/gcc/arm-none-eabi/4.8.3
 
 all : clock.bin
 
@@ -28,6 +28,13 @@ cstart.o : cstart.c
 
 timer.o : timer.c
 	$(ARMGNU)-gcc $(CFLAGS) -c timer.c -o timer.o
+
+test.bin: memmap test.o gpio.o timer.o cstart.o
+	$(ARMGNU)-ld $(LDFLAGS) start.o cstart.o gpio.o timer.o test.o -T memmap -o test.elf
+	$(ARMGNU)-objcopy test.elf -O binary test.bin
+
+test.o: tests/test_gpio_timer.c
+	$(ARMGNU)-gcc $(CFLAGS) -c $< -o test.o
 
 clean :
 	rm -f *.o

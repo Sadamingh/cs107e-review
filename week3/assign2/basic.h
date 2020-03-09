@@ -1,6 +1,9 @@
 #ifndef BASIC_H
 #define BASIC_H
 
+#define true 1
+#define false 0
+
 #include <stdint.h>
 
 typedef unsigned int uint;

@@ -2,6 +2,27 @@
 #include "../gpio.h"
 #include "../timer.h"
 
+static volatile u32 *gp_pud = (u32 *)0x20200094;
+static volatile u32 *gp_pud_clk = (u32 *)0x20200098;
+
+// see BCM 2835 manual page 101
+static void gpio_set_pullup(uint pin)
+{
+  uint bank = pin / 32;
+  uint shift = pin % 32;
+
+  *gp_pud = 2;
+
+  for (volatile int i = 0; i < 150; i++) ;
+
+  *(gp_pud_clk + bank) = 1 << shift;
+
+  for (volatile int i = 0; i < 150; i++) ;
+
+  *gp_pud = 0;
+  *(gp_pud_clk + bank) = 0;
+}
+
 // Bit 0 (the least significant) will represent segment A, bit 1 segment B...
 // Bit 7 DP
 static u8 bit_patterns[] = {
@@ -46,7 +67,7 @@ static void display_bit_pattern(int digit_index, u8 pattern) {
   }
 }
 
-static void display_char(int digit_index, char c) {
+static u8 char_pattern(char c) {
   u8 pattern = 0;
 
   if(c >= '0' && c <= '9') {
@@ -57,56 +78,163 @@ static void display_char(int digit_index, char c) {
     pattern = bit_patterns[16];
   }
 
-  if(pattern != 0) {
-    display_bit_pattern(digit_index, pattern);
-  }
+  return pattern;
 }
 
-static void display_number(int digit_index, int num) {
-  display_bit_pattern(digit_index, bit_patterns[num]);
+static u8 number_pattern(int num) {
+  return bit_patterns[num];
+}
+
+static volatile u32 *gp_lev = (u32 *)0x20200034;
+static int read_pin(uint pin) {
+  u32 value  = *(gp_lev + (pin / 32));
+  int offset = pin % 32;
+  return (value >> offset) & 0x1;
+}
+
+static int button_status[54] = {};
+
+// we need to debounce
+static bool is_button_pressed(uint pin) {
+  int *counter = button_status + pin;
+
+  if(*counter == 0 && read_pin(pin) == 1) return false;
+
+  // wait 10 cycles of main loop
+  // that means 10 * 10000us = 100ms
+  if(*counter == 10) {
+    *counter = 0;
+
+    return read_pin(pin) == 0;
+  }
+
+  *counter += 1;
+
+  return false;
+}
+
+inline static
+void save_total_seconds(int total_seconds, int dest[]) {
+  int minutes = total_seconds / 60;
+  int seconds = total_seconds % 60;
+  dest[0] = minutes / 10;
+  dest[1] = minutes % 10;
+  dest[2] = seconds / 10;
+  dest[3] = seconds % 10;
+}
+
+// max: inclusive
+inline static
+int inc_value_with_max(int value, int max) {
+  value++;
+  return value > max ? value % (max + 1) : value;
 }
 
 void main(void) {
   // set GPIO 20 ~ 27 to output
+  // corresponding to A, B, ... F, DP
   for(int i = 20; i <= 27; i++) {
     gpio_set_output(i);
   }
 
   // set GPIO 10 ~ 13 to output
+  // corresponding to Digigit 1 ~ 4
   for(int i = 10; i <= 13; i++) {
     gpio_set_output(i);
   }
 
-  u32 ticks = timer_get_ticks();
+  // set GPIO 2 ~ 3 to input
+  int red_button_pin = 2;
+  gpio_set_input(red_button_pin);
+  gpio_set_pullup(red_button_pin);
 
-  // wait 1 second
-  while(timer_get_ticks() - ticks < 1000000) {
-    for(int digit_index = 0; digit_index < 4; digit_index++) {
-      display_char(digit_index, '-');
-      timer_delay_us(2500);
-    }
-  }
+  int blue_button_pin = 3;
+  gpio_set_input(blue_button_pin);
+  gpio_set_pullup(blue_button_pin);
 
-  u32 total_seconds = 0;
+  bool is_running = false;
+  bool in_setting_mode = false;
+  bool display_hyphen = true;
+  int active_digit = 0;
+  int total_seconds = 0;
+  int count = 0;
 
+  u8 patterns[4] = {};
+  int setting_value[4] = {};
+
+  // one main loop costs 10000us, 10ms
   while(1) {
-    for(int i = 0; i < 100; i++) {
-      u32 minutes = total_seconds / 60;
-      u32 seconds = total_seconds % 60;
+    if(is_button_pressed(red_button_pin)) {
+      display_hyphen = false;
 
-      display_number(0, minutes / 10);
-      timer_delay_us(2500);
+      if(in_setting_mode) {
+        int value = setting_value[active_digit];
+        value = inc_value_with_max(value, (active_digit % 2) == 0 ? 5 : 9);
+        setting_value[active_digit] = value;
+      } else if(is_running) {
+        is_running = false;
+        save_total_seconds(total_seconds, setting_value);
+      } else {
+        is_running = true;
+        total_seconds = (setting_value[0]*10 + setting_value[1])*60 + setting_value[2]*10 + setting_value[3];
+      }
+    };
 
-      display_number(1, minutes % 10);
-      timer_delay_us(2500);
+    if(is_button_pressed(blue_button_pin)) {
+      display_hyphen = false;
 
-      display_number(2, seconds / 10);
-      timer_delay_us(2500);
+      if(in_setting_mode) {
+        active_digit++;
 
-      display_number(3, seconds % 10);
+        if(active_digit == 4) {
+          in_setting_mode = false;
+          active_digit = 0;
+        }
+      } else {
+        active_digit = 0;
+        in_setting_mode = true;
+        is_running = false;
+        save_total_seconds(total_seconds, setting_value);
+      }
+    }
+
+    if(is_running) {
+      int minutes = total_seconds / 60;
+      int seconds = total_seconds % 60;
+      patterns[0] = number_pattern(minutes / 10);
+      patterns[1] = number_pattern(minutes % 10);
+      patterns[2] = number_pattern(seconds / 10);
+      patterns[3] = number_pattern(seconds % 10);
+    } else {
+      if(in_setting_mode) {
+        for(int i = 0; i < 4; i++) {
+          // blink effect
+          if(i == active_digit && ((count / 50) % 2 == 1)) {
+            patterns[i] = 0;
+          } else {
+            patterns[i] = number_pattern(setting_value[i]);
+          }
+        }
+      } else {
+        for(int i = 0; i < 4; i++) {
+          if(display_hyphen) {
+            patterns[i] = char_pattern('-');
+          } else {
+            patterns[i] = number_pattern(setting_value[i]);
+          }
+        }
+      }
+    }
+
+    for(int i = 0; i < 4; i++) {
+      display_bit_pattern(i, patterns[i]);
       timer_delay_us(2500);
     }
 
-    total_seconds += 1;
+    count++;
+    if(is_running && count % 100 == 0) {
+      total_seconds++;
+    }
   }
 }
+

@@ -23,7 +23,15 @@ My study note of the awesome course [CS107E Winter 2020](http://cs107e.github.io
     * [A simple Larson Scanner](#a-simple-larson-scanner)
     * [Extended Larson Scanner](#extended-larson-scanner)
   * [From Assembly to C](#from-assembly-to-c)
-* [Week 3](#week-3)
+* [Week 3: C Pointers and Arrays](#week-3-c-pointers-and-arrays)
+  * [Lab2](#lab2)
+    * [C to assembly](#c-to-assembly)
+    * [Makefiles](#makefiles)
+    * [Testing](#testing)
+    * [Wire up display breadborad](#wire-up-display-breadborad)
+  * [Assignment2](#assignment2)
+    * [A Clock](#a-clock)
+    * [Set Time Extension](#set-time-extension)
 * [ARM Tips](#arm-tips)
 
 <!-- vim-markdown-toc -->
@@ -61,7 +69,7 @@ NOTE: __The address in the manual `0x7E...` is the logic address. We will change
 
 First, we need to install the arm toolchain for our Pi (compiler, assembler, linker, etc..) and the CP2012 driver. Check the [Installation Guide](http://cs107e.github.io/guides/install/).
 
-After installation, we should have bunch of `arm-none-eabi` tools.
+After installation, we should have a bunch of `arm-none-eabi` tools.
 
 ```bash
 cs107e git:(master) ❯ whence -a -m 'arm-none-eabi*'
@@ -118,7 +126,7 @@ From this documentation, we can know that __every ARM instruction can be conditi
 
 > The ARM instruction set encodes immediate values in an unusual way. It's typical of the design of the processor architecture: elegant, pragmatic, and quirky. Despite only using 12 bits of instruction space, the immediate value can represent a useful set of 32-bit constants.
 
-Basically, instead of using 12-bit to represent a number, ARM uses 8-bit for the number and 4-bit for rotating the number. By using this approch, it can represent a large set of useful 32-bit values.
+Basically, instead of using 12-bit to represent a number, ARM uses 8-bit for the number and 4-bit for rotating the number. By using this approach, it can represent a large set of useful 32-bit values.
 
 ### Lab1
 
@@ -126,13 +134,13 @@ Basically, instead of using 12-bit to represent a number, ARM uses 8-bit for the
 
 Let's give the world some light!
 
-![](./images/blink.gif)
+![](./assets/blink.gif)
 
 #### Button
 
 Tada! 🎉 What a fun button ever! NOTE: We need to have a 10k pull-up resistor. If you are not familiar with this concept, this is a [fine explanation](https://learn.sparkfun.com/tutorials/pull-up-resistors/all).
 
-![](./images/button.gif)
+![](./assets/button.gif)
 
 ### Assignment1
 
@@ -147,7 +155,7 @@ The simple Larson scanner is easy.
 
 Here is the code [larson.s](./week2/assign1/larson.s).
 
-![](./images/larson.gif)
+![](./assets/larson.gif)
 
 #### Extended Larson Scanner
 
@@ -157,15 +165,15 @@ So Let's do it the other way. We can control the time of the high level in a per
 
 Let's try that, implement a simple test in [brightness.s](./week2/assign1/brightness.s).
 
-We decrease the duty cycle (time of high level in the period) for GPIO 20, 21 and 22 one by one and see if their brightness have any difference.
+We decrease the duty cycle (time of high level in the period) for GPIO 20, 21 and 22 one by one and see if their brightness has any difference.
 
-![](./images/brightness.jpeg)
+![](./assets/brightness.jpeg)
 
 Yes they do! So the implementation of extended Larson scanner is obvious now.
 
 Check the code [larson-extended.s](./week2/assign1/larson-extended.s).
 
-![](./images/larson-extended.gif)
+![](./assets/larson-extended.gif)
 
 ### From Assembly to C
 
@@ -205,9 +213,159 @@ all : $(NAME).bin
 	 arm-none-eabi-gcc $(CFLAGS) -c $< -o $@
 ```
 
-## Week 3
+## Week 3: C Pointers and Arrays
 
-数码管模拟 http://www.uize.com/examples/seven-segment-display.html
+About NULL-terminated strings, Poul-Henning Kamp wrote an essay [The Most Expensive One-byte Mistake](https://queue.acm.org/detail.cfm?id=2010365).
+
+Does C do it wrong? I don't know. Using `(len, ptr)` will certainly incur other problems, like how long is the length field? Is it fixed or is it flexible?
+
+Since the spirit of C is trying to be simple and close to the machine, maybe NULL-terminated string is the way to go.
+
+If we want to implement the `(len, ptr)` pattern, it's trivially easy. Check [sds in Redis](https://github.com/antirez/redis/blob/unstable/src/sds.h#L51).
+
+### Lab2
+
+#### C to assembly
+
+`make codegen.list` and see what compiler does! Let your curiosity be your guide!
+
+#### Makefiles
+
+I've noticed that the loop counter variable `c` in `blink.c` is not `volatile`.
+
+```c
+for (int c = DELAY; c ! = 0; c--); // wait
+```
+
+Is that OK? We can find out.
+
+Disassemble the code and we can see the loop is there, it hasn't been optimized out.
+
+But if we change the gcc flag `-Og` to `-O2`, the loop is gone.
+
+So as a conclusion: __If your busy loop doesn't work, check the optimization level and whether or not the loop counter is volatile__.
+
+_What is the purpose for each of the CFLAGS?_
+
+`arm-none-eabi-gcc -v --help` is our best friend.
+
+_What happens if you just type make? Which commands will execute?_
+
+It will make the first target just as you have typed `make all`.
+
+_If you modify blink.c and run make again, which commands will rerun? What part of each target indicates the prerequisites?_
+
+All three commands, two `arm-none-eabi-gcc` and one `arm-none-eabi-objcopy`. The right part after the colon indicates the prerequisites.
+
+_What do the symbols $< and $@ mean?_
+
+`$@` refers to the left part of the rule, before the `:`.
+
+`$<` refers to the first element in the right part of the rule, after the `:`.
+
+And by the way, `$^` refers to all elements in the right part of the rule, after the `:`.
+
+#### Testing
+
+Using two built-in LEDs to indicate whether something is wrong.
+
+- GPIO 47: greet act LED
+- GPIO 35: red power LED
+
+Always test, test and test the program!
+
+#### Wire up display breadborad
+
+Just follow the instructions and remember: small step with tests!
+
+Since I don't have short jumpers, it looks kind of messy. But the structure is clear.
+
+![](./assets/display-breadboard.jpeg)
+
+### Assignment2
+
+#### A Clock
+
+This [Interactive demo of segment display](http://www.uize.com/examples/seven-segment-display.html) can be very helpful when constructing bit patterns.
+
+Note: For the input pin, we are not going to implement the pull-up by ourselves. __It turns out that Raspberry Pi has built-in support for pull-up and pull-down__. Check the manual on page 100.
+
+```c
+static volatile u32 *gp_pud = (u32 *)0x20200094;
+static volatile u32 *gp_pud_clk = (u32 *)0x20200098;
+static void gpio_set_pullup(uint pin)
+{
+  uint bank = pin / 32;
+  uint shift = pin % 32;
+
+  *gp_pud = 2;
+
+  for (volatile int i = 0; i < 150; i++) ;
+
+  *(gp_pud_clk + bank) = 1 << shift;
+
+  for (volatile int i = 0; i < 150; i++) ;
+
+  *gp_pud = 0;
+  *(gp_pud_clk + bank) = 0;
+}
+```
+
+Much more convenient now! 😄
+
+Here comes our cute home-made clock.
+
+![](./assets/clock.gif)
+
+#### Set Time Extension
+
+First, we need to design the _interface_. It's actually very straight forward.
+
+Out clock has three modes.
+
+- Running mode: it just ticks every second
+- Setting mode: configure each digit in this mode
+- Halt mode: it stops and displays fixed numbers
+
+Red button for `start/stop` and blue button for switching from setting mode.
+
+Let's see the actions and transitions from each mode:
+
+- First, the clock shows the initial '----'
+- Press red button, it starts running
+  - Press red button again, it stops
+  - Press blue button, it enters setting mode, see detail below
+- Press blue button, it enters setting mode
+  - Press blue button to move the "focus". Exiting to halt mode if the focus reaches to the end.
+  - Press red button to increase the number of the current digit
+
+What a cool clock!
+
+When we try to capture the button press event, we will soon found a problem.
+
+> When reading button presses on the Pi, you will quickly realize that pressing the button once may cause the value on the GPIO pin to change multiple times. This is due to physical characteristics of the button mechanism which cause the button circuit to open and close multiple times during a press.
+
+Let's see the demo:
+
+![](./assets/button-unstable.gif)
+
+We can clearly see that on button press triggers multiple increments.
+
+This can be solved by __debouncing__.
+
+> To address this issue, implement debouncing by checking whether the value change on the GPIO pin corresponds to an actual button press or one of these spurious events. This can be done by checking that the GPIO pin reads the button press value for a long enough time (that is, these spurious events will change the GPIO value quickly, meaning if you check the value of the pin as pressed, then wait a bit longer and see it as unpressed, that means it was a spurious event).
+
+The main idea is that we check the input level, wait a little bit time (we have to experiment to find out the time we need), then we check again. If both checks give us a low level, the button is pressed.
+
+Our little button works now!
+
+![](./assets/button-debounced.gif)
+
+This is our final clock, check the full code [week3/assign2/apps/clocl.c](./week3/assign2/apps/clock.c).
+
+![](./assets/clock-extended.gif)
+
+NOTE: If you encounter this error: _undefined reference to `__aeabi_idivmod`_, that means you have used some division operations and need to link to `libgcc.a`.
 
 ## ARM Tips
 

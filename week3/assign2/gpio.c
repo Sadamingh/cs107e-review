@@ -31,26 +31,23 @@ void gpio_init(void) {
 }
 
 // If `pin` or `function` is invalid, does nothing.
-void gpio_set_function(uint pin, unsigned int function) {
-  if(!is_pin_valid(pin) || !is_function_valid(function)) {
-    return;
-  }
+// 0bxxx is a GCC extension
+void gpio_set_function(uint pin, uint function) {
+  if(!is_pin_valid(pin) || !is_function_valid(function)) return;
 
   volatile u32 *reg = get_fsel_register(pin);
   int offset = (pin % 10) * 3;
   u32 value = *reg;
-  value = value & (~(0x111 << offset));
+  value = value & (~(0b111 << offset));
   *reg = value | (function << offset);
 }
 
 int gpio_get_function(uint pin) {
-  if(!is_pin_valid(pin)) {
-    return -1;
-  }
+  if(!is_pin_valid(pin)) return -1;
 
   volatile u32 *reg = get_fsel_register(pin);
-  int offset = pin % 10;
-  return (*reg >> offset) & 0x111;
+  int offset = (pin % 10) * 3;
+  return (*reg >> offset) & 0b111;
 }
 
 void gpio_set_input(uint pin) {
