@@ -10,32 +10,39 @@ My study note of the awesome course [CS107E Winter 2020](http://cs107e.github.io
 
 <!-- vim-markdown-toc GFM -->
 
-* [Week1: Introduction and Welcome](#week1-introduction-and-welcome)
+* [Week 1: Introduction and Welcome](#week-1-introduction-and-welcome)
   * [Raspberry Pi](#raspberry-pi)
   * [ARM processor and architecture](#arm-processor-and-architecture)
   * [Assignment 0](#assignment-0)
 * [Week 2: ARM assembly and machine code](#week-2-arm-assembly-and-machine-code)
-  * [Lab1](#lab1)
+  * [Lab 1](#lab-1)
     * [Blink](#blink)
     * [Button](#button)
-  * [Assignment1](#assignment1)
+  * [Assignment 1](#assignment-1)
     * [A simple Larson Scanner](#a-simple-larson-scanner)
     * [Extended Larson Scanner](#extended-larson-scanner)
   * [From Assembly to C](#from-assembly-to-c)
 * [Week 3: C Pointers and Arrays](#week-3-c-pointers-and-arrays)
-  * [Lab2](#lab2)
+  * [Lab 2](#lab-2)
     * [C to assembly](#c-to-assembly)
     * [Makefiles](#makefiles)
     * [Testing](#testing)
     * [Wire up display breadborad](#wire-up-display-breadborad)
-  * [Assignment2](#assignment2)
+  * [Assignment 2](#assignment-2)
     * [A Clock](#a-clock)
     * [Set Time Extension](#set-time-extension)
+* [Week 4: Communication and the Serial Protocol](#week-4-communication-and-the-serial-protocol)
+  * [Lab 3](#lab-3)
+    * [Debugging with gdb](#debugging-with-gdb)
+    * [Serial communication](#serial-communication)
+    * [C-strings](#c-strings)
+    * [Gdb and testing](#gdb-and-testing)
+  * [Assignment 3](#assignment-3)
 * [ARM Tips](#arm-tips)
 
 <!-- vim-markdown-toc -->
 
-## Week1: Introduction and Welcome
+## Week 1: Introduction and Welcome
 
 [List of electronic parts we will use in this course](https://cs107e.github.io/guides/bom/).
 
@@ -123,7 +130,7 @@ From this documentation, we can know that __every ARM instruction can be conditi
 
 Basically, instead of using 12-bit to represent a number, ARM uses 8-bit for the number and 4-bit for rotation. By using this approach, it can represent a large set of useful 32-bit values.
 
-### Lab1
+### Lab 1
 
 #### Blink
 
@@ -137,7 +144,7 @@ Tada! 🎉 What a fun button ever! NOTE: We need to have a 10k pull-up resistor.
 
 ![](./assets/button.gif)
 
-### Assignment1
+### Assignment 1
 
 #### A simple Larson Scanner
 
@@ -216,7 +223,7 @@ Since the spirit of C is trying to be simple and close to the machine, maybe NUL
 
 If we want to implement the `(len, ptr)` pattern, it's trivially easy. Check [sds in Redis](https://github.com/antirez/redis/blob/unstable/src/sds.h#L51).
 
-### Lab2
+### Lab 2
 
 #### C to assembly
 
@@ -238,25 +245,37 @@ But if we change the gcc flag `-Og` to `-O2`, the loop is gone.
 
 So as a conclusion: __If your busy loop doesn't work, check the optimization level and whether or not the loop counter is volatile__.
 
-_What is the purpose for each of the CFLAGS?_
+**Disquss**
 
-`arm-none-eabi-gcc -v --help` is our best friend.
+**Q:** What is the purpose for each of the CFLAGS?
 
-_What happens if you just type make? Which commands will execute?_
+**A:** `arm-none-eabi-gcc -v --help` is our best friend.
 
-It will make the first target just as you have typed `make all`.
+**Q:** What happens if you just type make? Which commands will execute?
 
-_If you modify blink.c and run make again, which commands will rerun? What part of each target indicates the prerequisites?_
+**A:** It will make the first target just as you have typed `make all`.
 
-All three commands, two `arm-none-eabi-gcc` and one `arm-none-eabi-objcopy`. The right part after the colon indicates the prerequisites.
+**Q:** If you modify `blink.c` and run make again, which commands will rerun? What part of each target indicates the prerequisites?
 
-_What do the symbols $< and $@ mean?_
+**A:** All three commands, two `arm-none-eabi-gcc` and one `arm-none-eabi-objcopy`. The right part after the colon indicates the prerequisites.
 
-`$@` refers to the left part of the rule, before the `:`.
+**Q:** What do the symbols `$<` and `$@` mean?
 
-`$<` refers to the first element in the right part of the rule, after the `:`.
+**A:** `$@` refers to the left part of the rule, before the `:`. `$<` refers to the first element in the right part of the rule, after the `:`. And by the way, `$^` refers to all elements in the right part of the rule, after the `:`.
 
-And by the way, `$^` refers to all elements in the right part of the rule, after the `:`.
+**Check-in question**
+
+**Q:** Using the sample Makefile in the lab writeup, trace what happens when you issue make with no command-line arguments: what does make try to build? How does it determine what actions to take?
+
+**A:** make will try to build the first target. Every build target has a "formula". make build target by building its dependencies and executing the formula.
+
+**Q:** Got that “Green->success, Red->fail”, but are there any other outcomes to watch for? What happens when executing a test case that itself is in error, such as the final test case of testing.c? What happens if the bug in count_bits caused it to enter an infinite loop– what then would you expect to be the observed behavior when testing?
+
+**A:** Yes, we get neither green nor red flashing. If a test case is incorrect, we will see the red LED flashing and think that our code is wrong. If the program enters an infinite loop, we will observe neither green lit nor red flashing. The green LED is off and the red LED is on.
+
+**Q:** Which pins must be connected to show "3" on the first digit? Which additional pins much be connected to show "3333" across all four digits? Why is it impossible to simultaneously show "3" on the first digit and "4" on the second? (The trick to doing so, as you will see in the assignment, is to quickly switch between digits to create the illusion of displaying "34")
+
+**A:** In order to show "3" on the first digit, we have to connect pin 12 (digit 1), pin 11 (A), pin 7 (B), pin 4 (C), pin 2 (D) and pin 5 (G). To show "3333", we have to connect pin 9 (digit 2), pin 8 (digit 3) and pin 6 (digit 4). Because all segements on four digits are connected together. If segement A on digit 1 is on, then segement A on digit 2, 3, 4 are all on.
 
 #### Testing
 
@@ -275,7 +294,7 @@ Since I don't have short jumpers, it looks kind of messy. But the structure is c
 
 ![](./assets/display-breadboard.jpeg)
 
-### Assignment2
+### Assignment 2
 
 #### A Clock
 
@@ -359,6 +378,60 @@ This is our final clock, check the full code [week3/assign2/apps/clocl.c](./week
 ![](./assets/clock-extended.gif)
 
 NOTE: If you encounter this error: _undefined reference to `__aeabi_idivmod`_, that means you have used some division operations and need to link to `libgcc.a`.
+
+## Week 4: Communication and the Serial Protocol
+
+`code/serial` demonstrate how to implement a seril communication by ourselves. Basically, write bit, wait some time, write bit again.
+
+### Lab 3
+
+#### Debugging with gdb
+
+We can use `arm-none-eabi-gdb` to debut the elf file.
+
+```bash
+$ arm-none-eabi-gdb simple.elf
+(gdb) target sim
+(gdb) load
+```
+
+**Check-in question**
+
+**Q:** Explain how the lr register is used as part of making a function call. Which instruction writes to the lr register? Which instruction reads from it? What commands could you use in gdb to observe the changes to the lr register during execution of a function call?
+
+**A:** When we call a function, the address of the next instruction after the function is written to lr. After calling, set pc to the value lr has recorded to get us back. `bx` branch and exchange writes to the lr register. `bl` branch and link reads from the lr register. Use `display/x $lr` to show the content the lr register after every step.
+
+**Q:** Why is it necessary to plug in both TX and RX for loopback mode to work?
+
+**A:** We need TX to send data to Pi and RX to receive data from Pi.
+
+**Q:** On a hosted system, executing an incorrect call to strlen (e.g. argument is an invalid address or unterminated string) can result in a runtime error (crash/halt). But when running bare metal on the Pi, every call to strlen (whether well-formed or not) will complete “successfully” and return a value. Explain the difference in behavior. What is the return value for an erroneous call?
+
+**A:** On a hosted system, if we pass an invalid address to strlen, strlen function may access unaccessable memory and cause the famous segement fault. That is because the OS is "watching" our program, make sure we "behave" and we don't read from/write to somewhere we shouldn't. But on the Pi, we are on our own. If we pass an invalid address to strlen, strlen will read memory from that address until it find a null byte. I don't know what would happen in Pi if we access beyond the phsical available memory (512MB). For an erroneous call, the return value varies depends on the contents in the memory and is meanless.
+
+#### Serial communication
+
+Now I realized that `printf` is so powerful.
+
+#### C-strings
+
+`strcpy` is easy and **dangerous**. The good old C always trusts programmers. But I don't trust myself 😉.
+
+In real projects, we should never use `strcpy`. Use `strncpy` instead.
+
+#### Gdb and testing
+
+Fun debugging!
+
+### Assignment 3
+
+Since I don't have the starter files, I have to build them by myself. Actually, It's kind of fun.
+
+`timer.o`, `gpio.o` and `uart.o` are extracted from the official `libpi.a`.
+
+```bash
+$ arm-none-eabi-ar -t libpi.a timer.o gpio.o uart.o
+```
 
 ## ARM Tips
 
