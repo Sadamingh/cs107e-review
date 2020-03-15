@@ -38,6 +38,7 @@ My study note of the awesome course [CS107E Winter 2020](http://cs107e.github.io
     * [C-strings](#c-strings)
     * [Gdb and testing](#gdb-and-testing)
   * [Assignment 3](#assignment-3)
+    * [Strings](#strings)
 * [ARM Tips](#arm-tips)
 
 <!-- vim-markdown-toc -->
@@ -430,8 +431,16 @@ Since I don't have the starter files, I have to build them by myself. Actually, 
 `timer.o`, `gpio.o` and `uart.o` are extracted from the official `libpi.a`.
 
 ```bash
-$ arm-none-eabi-ar -t libpi.a timer.o gpio.o uart.o
+$ arm-none-eabi-ar -xv libpi.a timer.o gpio.o uart.o
 ```
+
+#### Strings
+
+The function prototypes in `strings.h` are very clear and helpful. So this is a fairly easy task.
+
+We can utilize _TDD_ here. Write the tests first, then the implementation.
+
+Check the code [strings.c](./week4/assign3/strings.c).
 
 ## ARM Tips
 

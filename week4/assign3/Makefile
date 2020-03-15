@@ -1,4 +1,4 @@
-CFLAGS = -I$(CS107E)/include -Wall -Og -std=c99 -ffreestanding 
+CFLAGS = -I$(CS107E)/include -g -Wall -Og -std=c99 -ffreestanding 
 LDFLAGS = -nostdlib -T memmap
 
 .PRECIOUS: %.elf
