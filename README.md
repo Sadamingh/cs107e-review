@@ -39,6 +39,7 @@ My study note of the awesome course [CS107E Winter 2020](http://cs107e.github.io
     * [Gdb and testing](#gdb-and-testing)
   * [Assignment 3](#assignment-3)
     * [Strings](#strings)
+    * [Number to string helper functions](#number-to-string-helper-functions)
 * [ARM Tips](#arm-tips)
 
 <!-- vim-markdown-toc -->
@@ -441,6 +442,21 @@ The function prototypes in `strings.h` are very clear and helpful. So this is a 
 We can utilize _TDD_ here. Write the tests first, then the implementation.
 
 Check the code [strings.c](./week4/assign3/strings.c).
+
+#### Number to string helper functions
+
+Test, test and test! I thought this was an easy task, but it turned out I made tons of bugs. Luckily, I had plenty test cases and they just saved me.
+
+One thing to note: **Be careful with unsigned int**. They will overflow and cause subtle bugs if you are careless.
+
+```c
+// limit is an unsigned inteer
+for(int i = 0; i < limit - 1; i++) {
+  ...
+}
+```
+
+You are out of luck if limit is 0 😢.
 
 ## ARM Tips
 

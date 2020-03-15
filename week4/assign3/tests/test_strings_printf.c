@@ -1,5 +1,8 @@
 #include "timer.h"
-#include "strings.h"
+#include "../strings.h"
+#include "../printf.h"
+#include "../printf_internal.h"
+
 #define assert(x) if(!(x)) abort()
 
 #define GPIO_FSEL3  ((unsigned int *)0x2020000c)
@@ -175,6 +178,93 @@ void test_strings() {
   }
 }
 
+void test_printf(void) {
+  // unsigned_to_base
+  {
+    char buf[20];
+    int result;
+
+    result = unsigned_to_base(buf, sizeof(buf), 64, 10, 2);
+    assert(result = 4);
+    assert(strcmp(buf, "64") == 0);
+
+    result = unsigned_to_base(buf, sizeof(buf), 64, 10, 4);
+    assert(result = 4);
+    assert(strcmp(buf, "0064") == 0);
+
+    result = unsigned_to_base(buf, sizeof(buf), 0, 10, 0);
+    assert(result = 1);
+    assert(strcmp(buf, "0") == 0);
+
+    result = unsigned_to_base(buf, sizeof(buf), 64, 16, 4);
+    assert(result = 4);
+    assert(strcmp(buf, "0040") == 0);
+
+    result = unsigned_to_base(buf, sizeof(buf), 64, 16, 1);
+    assert(result = 2);
+    assert(strcmp(buf, "40") == 0);
+
+    result = unsigned_to_base(buf, 2, 64, 10, 4);
+    assert(result = 4);
+    assert(strcmp(buf, "0") == 0);
+
+    result = unsigned_to_base(buf, 1, 64, 10, 4);
+    assert(result = 4);
+    assert(strcmp(buf, "") == 0);
+
+    buf[0] = 'a';
+    buf[1] = 0;
+    result = unsigned_to_base(buf, 0, 64, 10, 4);
+    assert(result = 4);
+    assert(strcmp(buf, "a") == 0);
+  }
+
+  // signed_to_base
+  {
+    char buf[20];
+    int result;
+
+    result = signed_to_base(buf, sizeof(buf), 35, 10, 0);
+    assert(result == 2);
+    assert(strcmp(buf, "35") == 0);
+
+    result = signed_to_base(buf, sizeof(buf), 35, 10, 3);
+    assert(result == 3);
+    assert(strcmp(buf, "035") == 0);
+
+    result = signed_to_base(buf, sizeof(buf), 160, 16, 1);
+    assert(result == 2);
+    assert(strcmp(buf, "a0") == 0);
+
+    result = signed_to_base(buf, sizeof(buf), 100, 16, 5);
+    assert(result == 5);
+    assert(strcmp(buf, "00064") == 0);
+
+    result = signed_to_base(buf, sizeof(buf), -200, 16, 5);
+    assert(result == 5);
+    assert(strcmp(buf, "-00c8") == 0);
+
+    result = signed_to_base(buf, sizeof(buf), -1, 10, 0);
+    assert(result == 2);
+    assert(strcmp(buf, "-1") == 0);
+
+    result = signed_to_base(buf, 3, 1234, 10, 2);
+    assert(result == 4);
+    assert(strcmp(buf, "12") == 0);
+
+    result = signed_to_base(buf, 5, -9999, 10, 6);
+    assert(result == 6);
+    assert(strcmp(buf, "-099") == 0);
+
+    buf[0] = '1';
+    buf[1] = 0;
+    result = signed_to_base(buf, 0, 12345, 10, 10);
+    assert(result == 10);
+    assert(strcmp(buf, "1") == 0);
+  }
+}
+
 void main(void) {
-  test_strings();
+  /* test_strings(); */
+  test_printf();
 }
