@@ -484,6 +484,9 @@ debug
 (gdb) printf "%s", __stdout
 ```
 
+SBO=SHOULD BE ONE
+SBZ=SHOULD BE ZERO
+
 ## ARM Tips
 
 - Disassemble object file: `arm-none-eabi-objdump -D input.o`.

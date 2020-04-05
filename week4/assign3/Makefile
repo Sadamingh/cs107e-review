@@ -5,22 +5,29 @@ LDFLAGS = -nostdlib -T memmap -L/usr/local/Cellar/arm-none-eabi/4.8.3-cs170e/lib
 
 test.bin = tests/test_strings_printf.bin
 print.bin = apps/print_pinout.bin
-disassemble.bin = apps/disassemble.bin
+disassemble_self.bin = apps/disassemble_self.bin
+test_disassemble.bin = tests/test_disassemble.bin
 
 all: $(print.bin)
 test.bin: $(test.bin)
-disassemble.bin: $(disassemble.bin)
+disassemble_self.bin: $(disassemble.bin)
 
-disassemble: $(disassemble.bin)
+disassemble_self: $(disassemble_self.bin)
 	rpi-install.py -p $<
 
-disassemble.gdb: $(disassemble.bin)
-	arm-none-eabi-gdb apps/disassemble.elf
+test_disassemble: $(test_disassemble.bin)
+	rpi-install.py -p $<
+
+disassemble_self.gdb: $(disassemble_self.bin)
+	arm-none-eabi-gdb apps/disassemble_self.elf
+
+test_disassemble.gdb: $(test_disassemble.bin)
+	arm-none-eabi-gdb tests/test_disassemble.elf
 
 %.bin: %.elf
 	arm-none-eabi-objcopy $< -O binary $@
 
-%.elf: %.o start.o cstart.o printf.o strings.o gpio.o timer.o uart.o
+%.elf: %.o start.o cstart.o printf.o strings.o gpio.o timer.o uart.o disassemble.o assert.o
 	arm-none-eabi-gcc $(LDFLAGS) $^ -lgcc -o $@
 	arm-none-eabi-objdump -D $@ > $@.list
 

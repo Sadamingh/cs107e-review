@@ -2,8 +2,8 @@
 #include <stdint.h>
 #include <uart.h>
 
-#include "../assert.h"
-#include "../printf.h"
+#include "assert.h"
+#include "printf.h"
 
 typedef union {
   uint32_t value;
@@ -39,11 +39,11 @@ char *register_names[16] = {
   "r7",
   "r8",
   "r9",
-  "r10",
-  "r11",
+  "sl",
+  "fp",
   "r12",
   "sp",
-  "fp",
+  "lr",
   "pc",
 };
 inline char *
@@ -207,8 +207,8 @@ disassemble_data_processing_mov(
       buf,
       bufsize,
       "mov%s%s %s, #%d",
-      cond,
       setStatus,
+      cond,
       get_register_name(ins.rd),
       v);
     return;
@@ -220,8 +220,8 @@ disassemble_data_processing_mov(
       buf,
       bufsize,
       "mov%s%s %s, %s",
-      cond,
       setStatus,
+      cond,
       get_register_name(ins.rd),
       get_register_name(ins.shifter_operand));
     return;
@@ -233,125 +233,58 @@ disassemble_data_processing_mov(
   int imm = params.imm;
   int rs = params.rs;
 
+  char *shift_types[] = {"lsl", "lsr", "asr", "ror"};
+  char *shift_type = shift_types[mode >> 1];
+
   switch(mode) {
-    // lsl by immediate
-    case 0b000: {
-      snprintf(
-        buf,
-        bufsize,
-        "lsl%s%s %s, %s, #%d",
-        cond,
-        setStatus,
-        get_register_name(ins.rd),
-        get_register_name(rm),
-        imm);
-    } break;
-
-    // lsl by register
-    case 0b001: {
-      snprintf(
-        buf,
-        bufsize,
-        "lsl%s%s %s, %s, %s",
-        cond,
-        setStatus,
-        get_register_name(ins.rd),
-        get_register_name(rm),
-        get_register_name(rs));
-    } break;
-
-    // lsr by immediate
-    case 0b010: {
-      snprintf(
-        buf,
-        bufsize,
-        "lsr%s%s %s, %s, #%d",
-        cond,
-        setStatus,
-        get_register_name(ins.rd),
-        get_register_name(rm),
-        imm);
-    } break;
-
-    // lsr by register
-    case 0b011: {
-      snprintf(
-        buf,
-        bufsize,
-        "lsr%s%s %s, %s, %s",
-        cond,
-        setStatus,
-        get_register_name(ins.rd),
-        get_register_name(rm),
-        get_register_name(rs));
-    } break;
-
-    // asr by immediate
-    case 0b100: {
-      snprintf(
-        buf,
-        bufsize,
-        "asr%s%s %s, %s, #%d",
-        cond,
-        setStatus,
-        get_register_name(ins.rd),
-        get_register_name(rm),
-        imm);
-    } break;
-
-    // asr by register
-    case 0b101: {
-      snprintf(
-        buf,
-        bufsize,
-        "asr%s%s %s, %s, %s",
-        cond,
-        setStatus,
-        get_register_name(ins.rd),
-        get_register_name(rm),
-        get_register_name(rs));
-    } break;
-
-    // ror by immediate
-    case 0b110: {
-      // rrx
-      if(imm == 0) {
+    case 0b000: // lsl by immediate
+    case 0b010: // lsr by immediate
+    case 0b100: // asr by immediate
+    case 0b110: // ror by immediate
+    {
+      // ror,rrx
+      if(mode == 0b110 && imm == 0) {
         snprintf(
           buf,
           bufsize,
           "rrx%s%s %s, %s",
-          cond,
           setStatus,
+          cond,
           get_register_name(ins.rd),
           get_register_name(rm));
       } else {
         snprintf(
           buf,
           bufsize,
-          "ror%s%s %s, %s, #%d",
-          cond,
+          "%s%s%s %s, %s, #%d",
+          shift_type,
           setStatus,
+          cond,
           get_register_name(ins.rd),
           get_register_name(rm),
           imm);
       }
     } break;
 
-    // ror by register
-    case 0b111: {
+    case 0b001: // lsl by register
+    case 0b011: // lsr by register
+    case 0b101: // asr by register
+    case 0b111: // ror by register
+    {
       snprintf(
         buf,
         bufsize,
-        "ror%s%s %s, %s, %s",
-        cond,
+        "%s%s%s %s, %s, %s",
+        shift_type,
         setStatus,
+        cond,
         get_register_name(ins.rd),
         get_register_name(rm),
         get_register_name(rs));
     } break;
 
     default: {
-      snprintf(buf, bufsize, "!!![mov] %b, mode: %b", ins.value, mode);
+      invalid_code_path;
     } break;
   }
 }
@@ -371,6 +304,9 @@ disassemble_data_processing(
     case 0b0100: // add
     case 0b0000: // and
     case 0b0010: // sub
+    case 0b0011: // rsb
+    case 0b1110: // bic
+    case 0b1100: // orr
     {
       char *setStatus = ins.status ? "s" : "";
       char *cond = get_cond_name(ins.cond);
@@ -386,11 +322,38 @@ disassemble_data_processing(
         bufsize,
         "%s%s%s %s, %s, %s",
         operation,
-        cond,
         setStatus,
+        cond,
         get_register_name(ins.rd),
         get_register_name(ins.rn),
         operand);
+    } break;
+
+    // TEQ/BX
+    case 0b1001: {
+      // TEQ
+      if(ins.status) {
+        char *cond = get_cond_name(ins.cond);
+
+        char operand[1024];
+        format_operand(
+          operand, sizeof(operand), ins.immediate, ins.shifter_operand);
+
+        snprintf(
+          buf,
+          bufsize,
+          "teq%s %s, %s",
+          cond,
+          get_register_name(ins.rn),
+          operand);
+      } else { // BX
+        snprintf(
+          buf,
+          bufsize,
+          "bx %s",
+          get_register_name(ins.shifter_operand & 0b1111)
+        );
+      }
     } break;
 
     case 0b1010: // cmp
@@ -407,10 +370,9 @@ disassemble_data_processing(
       snprintf(
         buf,
         bufsize,
-        "%s%s%s %s, %s",
+        "%s%s %s, %s",
         operation,
         cond,
-        setStatus,
         get_register_name(ins.rn),
         operand);
     } break;
@@ -448,25 +410,4 @@ disassemble(char *buf, size_t bufsize, uint32_t value) {
       snprintf(buf, bufsize, "---");
     };
   }
-}
-
-void
-main(void) {
-  uint32_t addr = 0x8000;
-  uint32_t *p = (uint32_t *)addr;
-  uint32_t value;
-
-  char buf[1024];
-
-  for(int i = 0; i < 100; i++) {
-    value = *p++;
-
-    disassemble(buf, sizeof(buf), value);
-
-    printf("%x: %8x %s\n", addr, value, buf);
-
-    addr += 4;
-  }
-
-  uart_putchar(EOT);
 }
