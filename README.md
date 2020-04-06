@@ -20,7 +20,7 @@ My study note of the awesome course [CS107E Winter 2020](http://cs107e.github.io
     - [Button](#button)
   - [Assignment 1](#assignment-1)
     - [A simple Larson Scanner](#a-simple-larson-scanner)
-    - [Extended Larson Scanner](#extended-larson-scanner)
+    - [Extension: Different Levels of Brightness](#extension-different-levels-of-brightness)
   - [From Assembly to C](#from-assembly-to-c)
 - [Week 3: C Pointers and Arrays](#week-3-c-pointers-and-arrays)
   - [Lab 2](#lab-2)
@@ -30,7 +30,7 @@ My study note of the awesome course [CS107E Winter 2020](http://cs107e.github.io
     - [Wire up display breadborad](#wire-up-display-breadborad)
   - [Assignment 2](#assignment-2)
     - [A Clock](#a-clock)
-    - [Set Time Extension](#set-time-extension)
+    - [Extension: Set Time](#extension-set-time)
 - [Week 4: Communication and the Serial Protocol](#week-4-communication-and-the-serial-protocol)
   - [Lab 3](#lab-3)
     - [Debugging with gdb](#debugging-with-gdb)
@@ -41,7 +41,8 @@ My study note of the awesome course [CS107E Winter 2020](http://cs107e.github.io
     - [Strings module](#strings-module)
     - [Number to string conversion helper functions](#number-to-string-conversion-helper-functions)
     - [Implement snprintf, vsnprintf and printf](#implement-snprintf-vsnprintf-and-printf)
-    - [Disassembler extension](#disassembler-extension)
+    - [Extension: Disassembler](#extension-disassembler)
+  - [Modules, Libraries, and Linking](#modules-libraries-and-linking)
 - [ARM Tips](#arm-tips)
 
 <!-- /MarkdownTOC -->
@@ -161,7 +162,7 @@ Here is the code [larson.s](./week2/assign1/larson.s).
 
 ![](./assets/larson.gif)
 
-#### Extended Larson Scanner
+#### Extension: Different Levels of Brightness
 
 First, we need a way to control brightness. I thought about directly configuring the output voltage for a GPIO pin but it seems impossible.
 
@@ -221,7 +222,7 @@ all : $(NAME).bin
 
 About NULL-terminated strings, Poul-Henning Kamp wrote an essay [The Most Expensive One-byte Mistake](https://queue.acm.org/detail.cfm?id=2010365).
 
-Does C do it wrong? I don't know. Using `(len, ptr)` will certainly incur other problems, like how long is the length field? Is it fixed or is it flexible?
+Does C do it wrong? I don't know. Using `(len, ptr)` will certainly cause other problems, like how long is the length field? Is it fixed or is it flexible?
 
 Since the spirit of C is trying to be simple and close to the machine, maybe NULL-terminated string is the way to go.
 
@@ -333,7 +334,7 @@ Here comes our cute home-made clock.
 
 ![](./assets/clock.gif)
 
-#### Set Time Extension
+#### Extension: Set Time
 
 First, we need to design the _interface_. It's actually very straight forward.
 
@@ -470,7 +471,7 @@ Check the code [printf.c](./week4/assign3/printf.c).
 
 NOTE: The function's behavior for an invalid format conversion is undefined. You can define your own behavior. In my code, all the invalid format conversions will be copy as is. e.g. `printf("%a") == "%a"`.
 
-#### Disassembler extension
+#### Extension: Disassembler
 
 This task is kind of challenging and need to take a while to finish.
 
@@ -526,6 +527,37 @@ Run the code in GDB and check the result with following command:
 **Remember to write the test! Every time you want to implement some function, write the test first!**
 
 Implementing a complete disassembler is a huge task, I am not gonna do it. The final disassembler manages to successfully disassemble the first 100 instructions of itself. Cool enough 😎 Check the code [disassemble_self.c](./week4/assign3/apps/disassemble_self.c).
+
+### Modules, Libraries, and Linking
+
+**gcc**
+
+`gcc` is actually a front-end of a bunch of tools and it's very powerful!
+
+- `gcc -E`: preprocess, expand all macros and transform `.c` -> `.i`
+- `gcc -S`: compile, transform `.c` -> `.s`
+- `gcc -c`: assemble, transform `.s` -> `.o`
+
+You can use `gcc -save-temps` to get all the intermediate files.
+
+**Some useful tools**
+
+- `arm-none-eabi-nm`: list symbols in the object file
+- `arm-none-eabi-size`: list size of sections in the object file
+- `arm-none-eabi-ar`: manage archive files
+
+**Symbols in the object file**
+
+- T/t - text
+- D/d - read-write data
+- R/r - read-only data
+- B/b - bss (Block Started by Symbol)
+- C - common
+- lower-case letter means **static/local**
+
+Pay attention to the `COMMON` symbol. They are very confusing at the first glance. Why do we need them? What's the difference from the BSS?
+
+Simply put, COMMON only appears before the linking stage. Check [.bss vs COMMON: what goes where?](https://stackoverflow.com/questions/16835716/bss-vs-common-what-goes-where).
 
 ## ARM Tips
 
