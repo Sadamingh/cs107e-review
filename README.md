@@ -13,31 +13,31 @@ My study note of the awesome course [CS107E Winter 2020](http://cs107e.github.io
 - [Week 1: Introduction and Welcome](#week-1-introduction-and-welcome)
   - [Raspberry Pi](#raspberry-pi)
   - [ARM processor and architecture](#arm-processor-and-architecture)
-  - [Assignment 0](#assignment-0)
+  - [Assignment 0: Choose Lab Section, Learn Git](#assignment-0-choose-lab-section-learn-git)
 - [Week 2: ARM assembly and machine code](#week-2-arm-assembly-and-machine-code)
-  - [Lab 1](#lab-1)
+  - [Lab 1: Setup your Raspberry Pi](#lab-1-setup-your-raspberry-pi)
     - [Blink](#blink)
     - [Button](#button)
-  - [Assignment 1](#assignment-1)
+  - [Assignment 1: Implement a Larson Scanner](#assignment-1-implement-a-larson-scanner)
     - [A simple Larson Scanner](#a-simple-larson-scanner)
     - [Extension: Different Levels of Brightness](#extension-different-levels-of-brightness)
   - [From Assembly to C](#from-assembly-to-c)
 - [Week 3: C Pointers and Arrays](#week-3-c-pointers-and-arrays)
-  - [Lab 2](#lab-2)
+  - [Lab 2: Below C Level](#lab-2-below-c-level)
     - [C to assembly](#c-to-assembly)
     - [Makefiles](#makefiles)
     - [Testing](#testing)
     - [Wire up display breadborad](#wire-up-display-breadborad)
-  - [Assignment 2](#assignment-2)
+  - [Assignment 2: Implement a Clock](#assignment-2-implement-a-clock)
     - [A Clock](#a-clock)
     - [Extension: Set Time](#extension-set-time)
 - [Week 4: Communication and the Serial Protocol](#week-4-communication-and-the-serial-protocol)
-  - [Lab 3](#lab-3)
+  - [Lab 3: Debugging and Testing](#lab-3-debugging-and-testing)
     - [Debugging with gdb](#debugging-with-gdb)
     - [Serial communication](#serial-communication)
     - [C-strings](#c-strings)
     - [Gdb and testing](#gdb-and-testing)
-  - [Assignment 3](#assignment-3)
+  - [Assignment 3: Implement a String Formatting Library](#assignment-3-implement-a-string-formatting-library)
     - [Strings module](#strings-module)
     - [Number to string conversion helper functions](#number-to-string-conversion-helper-functions)
     - [Implement snprintf, vsnprintf and printf](#implement-snprintf-vsnprintf-and-printf)
@@ -47,10 +47,12 @@ My study note of the awesome course [CS107E Winter 2020](http://cs107e.github.io
   - [Lab 4: Linked and Loaded](#lab-4-linked-and-loaded)
     - [Linking](#linking)
     - [Memory Map](#memory-map)
-    - [Boot Loader](#boot-loader)
+    - [Bootloader](#bootloader)
     - [Stack](#stack)
     - [Heap](#heap)
     - [Check-in Question](#check-in-question)
+  - [Assignment 4: Backtrace and Malloc](#assignment-4-backtrace-and-malloc)
+    - [Prepare starter files](#prepare-starter-files)
 - [ARM Tips](#arm-tips)
 
 <!-- /MarkdownTOC -->
@@ -127,7 +129,7 @@ tools can interoperate.
 
 So `none` menas we are not targeting any operating system here, aka we are in "bare metal". And `eabi` means the ABI for the ARM architecture.
 
-### Assignment 0
+### Assignment 0: Choose Lab Section, Learn Git
 
 This is for the official students, I have nothing to do here 😜.
 
@@ -143,7 +145,7 @@ From this documentation, we can know that __every ARM instruction can be conditi
 
 Basically, instead of using 12-bit to represent a number, ARM uses 8-bit for the number and 4-bit for rotation. By using this approach, it can represent a large set of useful 32-bit values.
 
-### Lab 1
+### Lab 1: Setup your Raspberry Pi
 
 #### Blink
 
@@ -157,7 +159,7 @@ Tada! 🎉 What a fun button ever! NOTE: We need to have a 10k pull-up resistor.
 
 ![](./assets/button.gif)
 
-### Assignment 1
+### Assignment 1: Implement a Larson Scanner
 
 #### A simple Larson Scanner
 
@@ -236,7 +238,7 @@ Since the spirit of C is trying to be simple and close to the machine, maybe NUL
 
 If we want to implement the `(len, ptr)` pattern, it's trivially easy. Check [sds in Redis](https://github.com/antirez/redis/blob/unstable/src/sds.h#L51).
 
-### Lab 2
+### Lab 2: Below C Level
 
 #### C to assembly
 
@@ -307,7 +309,7 @@ Since I don't have short jumpers, it looks kind of messy. But the structure is c
 
 ![](./assets/display-breadboard.jpeg)
 
-### Assignment 2
+### Assignment 2: Implement a Clock
 
 #### A Clock
 
@@ -396,7 +398,7 @@ NOTE: If you encounter this error: _undefined reference to `__aeabi_idivmod`_, t
 
 `code/serial` demonstrate how to implement a seril communication by ourselves. Basically, write bit, wait some time, write bit again.
 
-### Lab 3
+### Lab 3: Debugging and Testing
 
 #### Debugging with gdb
 
@@ -444,7 +446,7 @@ In real projects, we should never use `strcpy`. Use `strncpy` instead.
 
 Fun debugging!
 
-### Assignment 3
+### Assignment 3: Implement a String Formatting Library
 
 Since I don't have the starter files, I have to build them by myself. Actually, It's kind of fun.
 
@@ -604,7 +606,7 @@ We can use a `linker script` to tell the linker how to lay out the sections in t
 
 Here is [documentation on linker scripts](https://sourceware.org/binutils/docs-2.21/ld/Scripts.html).
 
-#### Boot Loader
+#### Bootloader
 
 Our laptop and the bootloader communicate over the serial line via the Pi's UART. They use a simple file transfer protocal called XMODEM.
 
@@ -716,8 +718,6 @@ The bootloader will give up transmission when it didn't receive any data in half
 
 **A:** We will read wrong data afterwards.
 
-!!! Validate our program in Pi.
-
 #### Check-in Question
 
 **Q:** Compare the symbol list from nm linking.o to nm linking.elf. How do the symbol addresses from an object file differ from the addresses in the linked executable? How does the instruction bl \_cstart change after linking?
@@ -779,6 +779,24 @@ Use abs stack frame for example, `main` = 0x0000801c and `diff` = 0xbc. It repre
 **Q:** How should the number of free calls relate to the number of malloc calls in a correctly-written program that uses heap allocation?
 
 **A:** They should be **exactly** same.
+
+### Assignment 4: Backtrace and Malloc
+
+#### Prepare starter files
+
+`gpio.o`, `timer.o`, `uart.o` and `strings.o` are copied from official `libpi.a`.
+
+```bash
+$ arm-none-eabi-ar -xv libpi.a gpio.o timer.o uart.o strings.o
+```
+
+`backtrace.h` and `malloc.h` are copied from official include directory.
+
+`printf.o`, `cstart.c` and `start.s` are copied from assignment 3.
+
+`Makefile` is handwritten from scratch.
+
+Now we are ready to tackle the challenges 🥊.
 
 ## ARM Tips
 
