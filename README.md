@@ -53,7 +53,12 @@ My study note of the awesome course [CS107E Winter 2020](http://cs107e.github.io
     - [Check-in Question](#check-in-question)
   - [Assignment 4: Backtrace and Malloc](#assignment-4-backtrace-and-malloc)
     - [Prepare starter files](#prepare-starter-files)
+    - [Backtrace](#backtrace)
+    - [Backtrace Module](#backtrace-module)
 - [ARM Tips](#arm-tips)
+- [GCC](#gcc)
+  - [`-mpoke-function-name`](#-mpoke-function-name)
+  - [Inline Assembly](#inline-assembly)
 
 <!-- /MarkdownTOC -->
 
@@ -798,7 +803,41 @@ $ arm-none-eabi-ar -xv libpi.a gpio.o timer.o uart.o strings.o
 
 Now we are ready to tackle the challenges 🥊.
 
+#### Backtrace
+
+This task is not hard but time-consuming. You need a lot of patience to debug what went wrong.
+
+`stack_abs.html` is very helpful.
+
+#### Backtrace Module
+
 ## ARM Tips
 
 - Disassemble object file: `arm-none-eabi-objdump -D input.o`.
 - Disassemble binary file: `arm-none-eabi-objdump -b binary -D -marm input.bin`.
+
+## GCC
+
+### `-mpoke-function-name`
+
+Write the name of each function into the text section, directly preceding the function prologue. The generated code is similar to this:
+
+```
+t0
+  .ascii "arm_poke_function_name", 0
+  .align
+t1
+  .word 0xff000000 + (t1 - t0)
+arm_poke_function_name
+  mov     r12, sp
+  push    {fp, r12, lr, pc}
+  sub     fp, r12, #4
+```
+
+When performing a stack backtrace, code can inspect the word value at the location immediately preceding the first instruction. If that value has the most significant 8 bits set, then we know that there is a function name embedded preceding value and the name has length (`value & ~0xff000000`).
+
+NOTE: `-mpoke-function-name` implies enabling function frames.
+
+### Inline Assembly
+
+https://gcc.gnu.org/onlinedocs/gcc/Using-Assembly-Language-with-C.html
