@@ -276,7 +276,7 @@ vsnprintf(char *buf, size_t bufsize, const char *format, va_list ap) {
 }
 
 #if GDB_DEBUG
-char __stdout[1024 * 1024] = {};
+char __stdout[10 * 1024 * 1024] = {};
 #endif
 
 int

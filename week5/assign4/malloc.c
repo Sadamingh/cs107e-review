@@ -1,10 +1,12 @@
 #include "malloc.h"
 #include "assert.h"
 #include "printf.h"
+#include "backtrace.h"
 #include <strings.h>
 
 #define roundup(x, n) (((x) + ((n)-1)) & (~((n)-1)))
-#define MALLOC_HEADER_SIZE 8
+#define REDZONE 0x01020304
+#define FRAME_COUNT 3
 
 extern int __bss_end__;
 char *heap_start = (char *)&__bss_end__;
@@ -13,11 +15,29 @@ char *heap_end = (char *)&__bss_end__;
 typedef struct malloc_header {
   size_t size;
   int status;  // 0 if free, 1 if in use
+  size_t request;
+  size_t _padding;
+  frame_t frames[FRAME_COUNT];
+  uint32_t redzone;
 } malloc_header;
+
+#define MALLOC_HEADER_SIZE sizeof(malloc_header)
 
 void
 _reset_heap(void) {
   heap_end = heap_start;
+}
+
+static void
+print_farmes(frame_t frames[]) {
+  for(int i = 0; i < FRAME_COUNT; i++) {
+    frame_t *frame = frames + i;
+    printf("# %d 0x%x at %s + %d\n",
+           i,
+           frame->resume_addr,
+           frame->name,
+           frame->resume_offset);
+  }
 }
 
 static inline malloc_header *
@@ -58,6 +78,21 @@ heap_dump(char *title) {
   printf("\n");
 }
 
+typedef struct redzone_value {
+  uint32_t leading;
+  uint32_t trailing;
+} redzone_value;
+
+static redzone_value
+get_redzone_value(malloc_header *header) {
+  redzone_value result = {};
+  result.leading = *((uint32_t *)header + MALLOC_HEADER_SIZE / 4 - 1);
+  result.trailing =
+    *((uint32_t *)header + MALLOC_HEADER_SIZE / 4 + header->size / 4 - 1);
+
+  return result;
+}
+
 void *
 sbrk(int nbytes) {
   assert(nbytes % 8 == 0);
@@ -74,11 +109,12 @@ sbrk(int nbytes) {
 
 void *
 malloc(size_t nbytes) {
+  assert(MALLOC_HEADER_SIZE % 8 == 0);
+
   if(nbytes == 0) return NULL;
 
-  assert(sizeof(malloc_header) == MALLOC_HEADER_SIZE);
-
-  size_t payload_size = roundup(nbytes, 8);
+  // last four bytes is the red zone
+  size_t payload_size = roundup(nbytes + 4, 8);
 
   malloc_header *search = (malloc_header *)heap_start;
   while((char *)search < heap_end) {
@@ -90,11 +126,17 @@ malloc(size_t nbytes) {
         malloc_header *remaining_block =
           (malloc_header *)((char *)search + MALLOC_HEADER_SIZE + payload_size);
         remaining_block->status = 0;
+        remaining_block->request = 0;
         remaining_block->size = remaining - MALLOC_HEADER_SIZE;
+        remaining_block->redzone = REDZONE;
+        backtrace(remaining_block->frames, FRAME_COUNT);
       }
 
+      // we don't need to write redzone
       search->size = payload_size;
+      search->request = nbytes;
       search->status = 1;
+      backtrace(search->frames, FRAME_COUNT);
       return (void *)(search + 1);
     }
 
@@ -107,7 +149,13 @@ malloc(size_t nbytes) {
 
   malloc_header *header = (malloc_header *)result;
   header->size = payload_size;
+  header->request = nbytes;
   header->status = 1;
+  header->redzone = REDZONE;
+  backtrace(header->frames, FRAME_COUNT);
+
+  uint32_t *trailing_redzone = (uint32_t *)(header + 1) + header->size / 4 - 1;
+  *trailing_redzone = REDZONE;
 
   return (void *)(header + 1);
 }
@@ -117,8 +165,24 @@ free(void *ptr) {
   if(ptr == NULL) return;
 
   malloc_header *header = (malloc_header *)ptr - 1;
+
+  redzone_value red = get_redzone_value(header);
+  if(red.leading != REDZONE || red.trailing != REDZONE) {
+    printf("=============================================\n");
+    printf("**********  Mini-Valgrind Alert  **********\n");
+    printf("=============================================\n");
+    printf(
+      "Attempt to free address %p that has damaged red zone(s): "
+      "[%x] [%x]\n",
+      ptr,
+      red.leading,
+      red.trailing);
+    printf("Block of size %d bytes, allocated by\n", header->request);
+    print_farmes(header->frames);
+    return;
+  }
+
   assert(header->status == 1);
-  header->status = 0;
 
   malloc_header *end = header;
   while(end->status == 0 && (char *)end < heap_end) {
@@ -126,6 +190,8 @@ free(void *ptr) {
   }
 
   header->size = (char *)end - (char *)header - MALLOC_HEADER_SIZE;
+  header->request = 0;
+  header->status = 0;
 }
 
 void *
@@ -142,17 +208,22 @@ realloc(void *ptr, size_t new_size) {
   malloc_header *header = (malloc_header *)ptr - 1;
   assert(header->status == 1);
 
-  size_t payload_size = roundup(new_size, 8);
+  // 4 bytes is the red zone
+  size_t payload_size = roundup(new_size + 4, 8);
 
   if(header->size >= payload_size) {
-    malloc_header *remaining_header =
-      (malloc_header *)((char *)header + MALLOC_HEADER_SIZE + payload_size);
+    if(header->size - payload_size >= MALLOC_HEADER_SIZE) {
+      malloc_header *remaining_header =
+        (malloc_header *)((char *)header + MALLOC_HEADER_SIZE + payload_size);
 
-    remaining_header->status = 1;
-    remaining_header->size = header->size - payload_size - MALLOC_HEADER_SIZE;
-    free(remaining_header + 1);
+      remaining_header->status = 0;
+      remaining_header->size = header->size - payload_size - MALLOC_HEADER_SIZE;
 
-    header->size = payload_size;
+      header->size = payload_size;
+      uint32_t *redzone = (uint32_t *)(header + 1) + header->size / 4 - 1;
+      *redzone = REDZONE;
+    }
+
     return ptr;
   }
 
@@ -164,22 +235,28 @@ realloc(void *ptr, size_t new_size) {
   }
 
   if(size_between(search, header) >= payload_size) {
-    header->size = payload_size;
-
     size_t remaining_size = size_between(search, header) - payload_size;
-    if(remaining_size > 0) {
+    // Don't have to include the red zone
+    if(remaining_size >= MALLOC_HEADER_SIZE) {
       malloc_header *remaining_block =
         (malloc_header *)((char *)header + MALLOC_HEADER_SIZE + payload_size);
       remaining_block->status = 0;
       remaining_block->size = remaining_size - MALLOC_HEADER_SIZE;
+
+      header->size = payload_size;
+    } else {
+      header->size = size_between(search, header);
     }
+
+    uint32_t *redzone = (uint32_t *)(header + 1) + header->size / 4 - 1;
+    *redzone = REDZONE;
 
     return ptr;
   } else {
-    void *newptr = malloc(payload_size);
+    void *newptr = malloc(new_size);
 
     if(newptr) {
-      memcpy(newptr, ptr, header->size);
+      memcpy(newptr, ptr, header->request);
     }
 
     free(ptr);

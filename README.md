@@ -72,6 +72,7 @@ $ http-server -p 4000 _site
     - [Prepare starter files](#prepare-starter-files)
     - [Backtrace Module](#backtrace-module)
     - [Malloc Module](#malloc-module)
+    - [Extension: Mini-Valgrind](#extension-mini-valgrind)
 - [ARM Tips](#arm-tips)
 - [GCC Tips](#gcc-tips)
   - [`-mpoke-function-name`](#-mpoke-function-name)
@@ -846,6 +847,10 @@ __asm__("mov %0, sp" : "=r"(cur_sp));
 ```
 
 Check the final code [malloc.c](./week5/assign4/malloc.c) and [test_backtrace_malloc.c](./week5/assign4/tests/test_backtrace_malloc.c). Always write the test!
+
+#### Extension: Mini-Valgrind
+
+NOTE: Take care to keep the payload aligned on the 8-byte boundary, which means the pointer returned by `malloc` should always be divisible by 8.
 
 ## ARM Tips
 
