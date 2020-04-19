@@ -1,8 +1,6 @@
 #include <printf.h>
 #include "backtrace.h"
 
-#define ArrayCount(arr) ((sizeof(arr) / sizeof(arr[0])))
-
 const char *
 name_of(uintptr_t fn_start_addr) {
   uint32_t word = *(uint32_t *)(fn_start_addr - 4);
@@ -31,7 +29,7 @@ backtrace(frame_t f[], int max_frames) {
     uintptr_t up_pc = *up_fp;
 
     f[i].resume_addr = lr;
-    f[i].resume_offset = lr - up_pc + 8;
+    f[i].resume_offset = lr - up_pc + 12;
     f[i].name = name_of(up_pc - 12);
 
     cur_fp = up_fp;
@@ -44,13 +42,17 @@ void
 print_frames(frame_t frames[], int n) {
   for(int i = 0; i < n; i++) {
     frame_t *f = frames + i;
-    printf("#%d 0x%x at %s+%d\n", i, f->resume_addr, f->name, f->resume_offset);
+    printf("#%d 0x%x at %s+%d\n",
+           i,
+           f->resume_addr,
+           f->name,
+           f->resume_offset - 4);
   }
 }
 
 void
 print_backtrace(void) {
   frame_t frames[10];
-  int result = backtrace(frames, ArrayCount(frames));
+  int result = backtrace(frames, 10);
   print_frames(frames, result);
 }

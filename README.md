@@ -797,7 +797,7 @@ $ arm-none-eabi-ar -xv libpi.a gpio.o timer.o uart.o strings.o
 
 `backtrace.h` and `malloc.h` are copied from official include directory.
 
-`printf.o`, `cstart.c` and `start.s` are copied from assignment 3.
+`printf.h`, `printf_internal.h`, `printf.c`, `cstart.c` and `start.s` are copied from assignment 3.
 
 `Makefile` is handwritten from scratch.
 
