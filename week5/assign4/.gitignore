@@ -1,0 +1,4 @@
+!gpio.o
+!timer.o
+!uart.o
+!strings.o
