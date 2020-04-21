@@ -5,4 +5,5 @@
 *.elf
 *.out
 .tags
+!_resource/firmware/*
 

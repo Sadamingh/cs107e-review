@@ -73,6 +73,7 @@ $ http-server -p 4000 _site
     - [Backtrace Module](#backtrace-module)
     - [Malloc Module](#malloc-module)
     - [Extension: Mini-Valgrind](#extension-mini-valgrind)
+  - [C Mastery](#c-mastery)
 - [ARM Tips](#arm-tips)
 - [GCC Tips](#gcc-tips)
   - [`-mpoke-function-name`](#-mpoke-function-name)
@@ -857,6 +858,56 @@ Add four bytes to our header as the leading red zone and four bytes to payload a
 Whenever we are freeing a block, check the red zones. If they have incorrect content, then we know something bad is happening!
 
 We can call `memory_report` in our `_cstart` function so that every program now has a neat memory report.
+
+### C Mastery
+
+Struct is a convenient and readable way to allocate memory and name offsets from a pointer.
+
+NOTE: In C, struct has a "padding" process. Check this stack overflow thread [Structure padding and packing](https://stackoverflow.com/questions/4306186/structure-padding-and-packing) for details.
+
+**What you need to write good software?**
+
+- Productive development process
+- Effective testing
+- Proficient debugging strategy
+- Priority on good design/readability/maintainability
+
+**What is different about systems software?**
+
+- Terse and unforgiving, details matter
+- All depend on it, bugs have consequences
+- Not enough to know what code does, but also how/why
+
+**The value of code reading:**
+
+- Is it clear what the code intends to do?
+- Are you confident of the authors's understanding?
+- Would you want to maintain this code?
+
+> There are two ways of constructing a software design. One way is to make it so simple that there are obviously no deficiencies. And the other way is to make it so complicated that there are no obvious deficiencies. - C.A.R. Hoare
+
+**Recommended development process (I can't agree more):**
+
+- Write the high-quality version first (and only!)
+- Decompose problems, not programs
+- Implement from bottom up, each step should be testable
+- Unifying common code means less code to write, test,
+debug, and maintain!
+- Don’t depend on comments to make up for lack of
+readability in the code itself
+- One-step build
+
+**Engineering best practices:**
+
+- Test, test, test, and test some more
+- Start from a known working state, take small steps
+- Make things visible (printf, logic analyzer, gdb)
+- Methodical, systematic. Form hypotheses and perform experiments to confirm.
+- Fast prototyping, embrace automation, one-click build, source control
+- Don’t let bugs get you down, natural part of the work, relish the challenge you will learn something new!
+- Wellness important! ergonomics, healthy sleep/fuel, maintain perspective
+
+
 
 ## ARM Tips
 
