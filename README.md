@@ -78,6 +78,7 @@ $ http-server -p 4000 _site
   - [Lab 5: Keyboard Surfin'](#lab-5-keyboard-surfin)
     - [Check-in questions](#check-in-questions)
   - [Assignment 5: Keyboard and Simple Shell](#assignment-5-keyboard-and-simple-shell)
+    - [Prepare starter files](#prepare-starter-files-1)
     - [Keyboard driver](#keyboard-driver)
     - [Simple shell](#simple-shell)
     - [Extension: editing and history](#extension-editing-and-history)
@@ -89,7 +90,7 @@ $ http-server -p 4000 _site
     - [Fonts](#fonts)
     - [Check-in](#check-in)
   - [Assignment 6: Graphics Library and Console](#assignment-6-graphics-library-and-console)
-  - [Prepare starter files](#prepare-starter-files-1)
+  - [Prepare starter files](#prepare-starter-files-2)
 - [ARM Tips](#arm-tips)
 - [GCC Tips](#gcc-tips)
   - [`-mpoke-function-name`](#-mpoke-function-name)
@@ -1003,6 +1004,36 @@ The code of this lab is fairly easy. Check [keyboard.c](./week6/lab5/my_keyboard
 
 ### Assignment 5: Keyboard and Simple Shell
 
+#### Prepare starter files
+
+Copy `cstart.c`, `memmap`, `start.s` from assignment 4.
+
+Copy `keyboard.c` from lab5.
+
+Create `shell.c` with stub functions based on `shell.h`.
+
+Create `app/uart_shell.c` with following content:
+
+```c
+#include <uart.h>
+#include <keyboard.h>
+#include <printf.h>
+#include <shell.h>
+
+void
+main(void) {
+  uart_init();
+  keyboard_init(KEYBOARD_CLOCK, KEYBOARD_DATA);
+  shell_init(printf);
+
+  shell_run();
+}
+```
+
+Create `tests/test_keyboard.c` with an empty main function.
+
+Create `Makefile` to compile our app and test.
+
 #### Keyboard driver
 
 The keyboard module is well designed. We have 4 functions to handle 4 different level tasks:
@@ -1091,7 +1122,7 @@ Framebuffer overview:
 - The CPU and GPU share the memory, and hence the framebuffer
 - The CPU and GPU exchange messages using a mailbox
 
-NOTE: The default resolution in Pi GPU is not 1920x1080. If you have a 1920x1080 screen, in order to change the GPU resolution, create a file named `config.txt` with content:
+NOTE: The default resolution in Pi GPU is not 1920x1080. If you have a 1920x1080 screen, in order to change the GPU resolution, create a file named `config.txt` with following content:
 
 ```text
 hdmi_group=2
@@ -1239,7 +1270,7 @@ Following is the complete bit value for `&`, space means zero.
 
 Copy `memmap`, `keyboard.c`, `shell.c`, `start.s` and `cstart.c` from assignment 5.
 
-Create `apps/console_shell.c` with content:
+Create `apps/console_shell.c` with following content:
 
 ```c
 #include <gpio.h>
