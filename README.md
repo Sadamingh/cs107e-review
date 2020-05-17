@@ -88,6 +88,7 @@ $ http-server -p 4000 _site
     - [Multidimensional pointers](#multidimensional-pointers)
     - [Fonts](#fonts)
     - [Check-in](#check-in)
+  - [Assignment 6: Graphics Library and Console](#assignment-6-graphics-library-and-console)
 - [ARM Tips](#arm-tips)
 - [GCC Tips](#gcc-tips)
   - [`-mpoke-function-name`](#-mpoke-function-name)
@@ -1230,6 +1231,8 @@ Following is the complete bit value for `&`, space means zero.
 **Q:** Why does pixel_data have size 95 * 14 * 16 / 8?
 
 **A:** Duplicated questions. Check my answers above.
+
+### Assignment 6: Graphics Library and Console
 
 ## ARM Tips
 
