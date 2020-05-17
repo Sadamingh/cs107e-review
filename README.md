@@ -89,6 +89,7 @@ $ http-server -p 4000 _site
     - [Fonts](#fonts)
     - [Check-in](#check-in)
   - [Assignment 6: Graphics Library and Console](#assignment-6-graphics-library-and-console)
+  - [Prepare starter files](#prepare-starter-files-1)
 - [ARM Tips](#arm-tips)
 - [GCC Tips](#gcc-tips)
   - [`-mpoke-function-name`](#-mpoke-function-name)
@@ -1233,6 +1234,39 @@ Following is the complete bit value for `&`, space means zero.
 **A:** Duplicated questions. Check my answers above.
 
 ### Assignment 6: Graphics Library and Console
+
+### Prepare starter files
+
+Copy `memmap`, `keyboard.c`, `shell.c`, `start.s` and `cstart.c` from assignment 5.
+
+Create `apps/console_shell.c` with content:
+
+```c
+#include <gpio.h>
+#include <keyboard.h>
+#include <console.h>
+#include <shell.h>
+
+#define NUM_ROWS 20
+#define NUM_COLS 40
+
+void
+main(void)
+{
+  gpio_init();
+  console_init(NUM_ROWS, NUM_COLS);
+  keyboard_init(KEYBOARD_CLOCK, KEYBOARD_DATA);
+
+  shell_init(console_printf);
+  shell_run();
+}
+```
+
+Create `tests/test_gl_console.c` with an empty main function.
+
+Create `console.c`, `fb.c` and `gl.c` with stub functions based on their header files.
+
+Finally create `Makefile` to compile our app and test.
 
 ## ARM Tips
 
