@@ -3,6 +3,7 @@
 #include <shell_commands.h>
 #include <keyboard.h>
 #include <strings.h>
+#include <printf.h>
 #include <uart.h>
 #include <pi.h>
 
@@ -84,42 +85,73 @@ find_command(char *name)
   return 0;
 }
 
-static void
-move_cursor_left(int n)
+// NOTE: assume buf is enough
+static int
+move_cursor_left(char buf[], int n)
 {
   for(int i = 0; i < n; i++) {
-    shell_printf("%c", '\b');
+    buf[i] = '\b';
   }
+  buf[n] = 0;
+  return n;
 }
 
 // ASCII escape sequence
-static void
-move_cursor_right(int n)
+// NOTE: assume buf is enough
+static int
+move_cursor_right(char buf[], int n)
 {
   for(int i = 0; i < n; i++) {
-    shell_printf("%c[C", 0x1b);
+    int j = 3 * i;
+    buf[j] = 0x1b;
+    buf[j + 1] = '[';
+    buf[j + 2] = 'C';
   }
+  buf[3 * n] = 0;
+  return n * 3;
 }
 
 int
 cmd_history(int argc, const char *argv[])
 {
+  // NOTE: assume this is enough
+  char buf[1024];
+  int bufwritten = 0;
+
   for(int i = 0; i < ArrayCount(histories); i++) {
     int idx = (history_index + i) % ArrayCount(histories);
     history_item *item = histories + idx;
     if(item->no != 0) {
-      shell_printf("%d %s\n", item->no, item->buf);
+      bufwritten += snprintf(buf + bufwritten,
+        sizeof(buf) - bufwritten,
+        "%d %s\n",
+        item->no,
+        item->buf);
     }
   }
+
+  shell_printf(buf);
+
   return 0;
 }
 
 int
 cmd_echo(int argc, const char *argv[])
 {
-  for(int i = 1; i < argc; i++)
-    shell_printf("%s ", argv[i]);
-  shell_printf("\n");
+  // NOTE: assume this is enough
+  char buf[1024];
+  int bufwritten = 0;
+
+  for(int i = 1; i < argc; i++) {
+    bufwritten
+      += snprintf(buf + bufwritten, sizeof(buf) - bufwritten, "%s ", argv[i]);
+  }
+
+  buf[bufwritten++] = '\n';
+  buf[bufwritten] = 0;
+
+  shell_printf(buf);
+
   return 0;
 }
 
@@ -129,9 +161,17 @@ cmd_help(int argc, const char *argv[])
   int result = 0;
 
   if(argc == 1) {
+    // NOTE: assume this is enough
+    char buf[1024];
+    int bufwritten = 0;
     for(int i = 0; i < ArrayCount(commands); i++) {
-      shell_printf("%s: %s\n", commands[i].name, commands[i].description);
+      bufwritten += snprintf(buf + bufwritten,
+        sizeof(buf) - bufwritten,
+        "%s: %s\n",
+        commands[i].name,
+        commands[i].description);
     }
+    shell_printf(buf);
   } else {
     command_t *cmd = find_command((char *)argv[1]);
 
@@ -149,7 +189,7 @@ cmd_help(int argc, const char *argv[])
 int
 cmd_reboot(int argc, const char *argv[])
 {
-  shell_printf("%c", EOT);
+  uart_putchar(EOT);
   pi_reboot();
   return 0;
 }
@@ -225,28 +265,42 @@ shell_bell(void)
   shell_printf("%c", '\a');
 }
 
-static void
-clear_line(size_t written, size_t cursor)
+// NOTE: assume buf is enough
+static int
+clear_line(char buf[], size_t written, size_t cursor)
 {
+  int bufwritten = 0;
+
   if(cursor != written) {
-    move_cursor_right(written - cursor);
+    bufwritten += move_cursor_right(buf + bufwritten, written - cursor);
   }
-  move_cursor_left(written);
+
+  bufwritten += move_cursor_left(buf + bufwritten, written);
+
   for(int i = 0; i < written; i++) {
-    shell_printf(" ");
+    buf[bufwritten++] = ' ';
   }
-  move_cursor_left(written);
+
+  bufwritten += move_cursor_left(buf + bufwritten, written);
+  buf[bufwritten] = 0;
+
+  return bufwritten;
 }
 
 // Set line content to `content`
 static void
 set_line(char buf[], char *content, size_t *written, size_t *cursor)
 {
-  clear_line(*written, *cursor);
+  // Assume this is enough
+  char printbuf[1024];
+  int bufwritten = 0;
+  bufwritten += clear_line(printbuf, *written, *cursor);
   *written = strcpy(buf, LINE_MAX, content);
   for(int i = 0; i < *written; i++) {
-    shell_printf("%c", buf[i]);
+    printbuf[bufwritten++] = buf[i];
   }
+  printbuf[bufwritten] = 0;
+  shell_printf(printbuf);
   *cursor = *written;
 }
 
@@ -329,38 +383,51 @@ shell_readline(char buf[], size_t bufsize)
     }
 
     if(next == PS2_KEY_ARROW_LEFT && cursor > 0) {
-      move_cursor_left(1);
+      shell_printf("\b");
       cursor--;
       continue;
     }
 
     if(next == PS2_KEY_ARROW_RIGHT && cursor < written) {
-      move_cursor_right(1);
+      char buf[8];
+      move_cursor_right(buf, 1);
+      shell_printf(buf);
       cursor++;
       continue;
     }
 
     // ctrl-a
     if(next == 0x01) {
-      move_cursor_left(cursor);
+      char buf[256];
+      move_cursor_left(buf, cursor);
+      shell_printf(buf);
       cursor = 0;
       continue;
     }
 
     // ctrl-e
     if(next == 0x05) {
-      move_cursor_right(written - cursor);
+      if(cursor < written) {
+        char buf[128];
+        move_cursor_right(buf, written - cursor);
+        shell_printf(buf);
+      }
       cursor = written;
       continue;
     }
 
     // ctrl-u
     if(next == 0x15) {
-      move_cursor_left(cursor);
+      // Assume this is enough
+      char buf[1024];
+      int bufwritten = 0;
+      bufwritten += move_cursor_left(buf + bufwritten, cursor);
       for(int i = 0; i < written; i++) {
-        shell_printf(" ");
+        buf[bufwritten++] = ' ';
       }
-      move_cursor_left(written);
+      bufwritten += move_cursor_left(buf + bufwritten, written);
+      buf[bufwritten] = 0;
+      shell_printf(buf);
       written = 0;
       cursor = 0;
       continue;
@@ -380,17 +447,20 @@ shell_readline(char buf[], size_t bufsize)
         if(cursor == written) {
           written--;
           cursor--;
-          move_cursor_left(1);
-          shell_printf(" ");
-          move_cursor_left(1);
+          shell_printf("\b \b");
         } else {
-          move_cursor_left(1);
+          // NOTE: assume this is enough
+          char buf[1024];
+          int bufwritten = 0;
+          bufwritten += move_cursor_left(buf + bufwritten, 1);
           int count = written - cursor;
           for(int i = 0; i < count; i++) {
-            shell_printf("%c", buf[cursor + i]);
+            buf[bufwritten++] = buf[cursor + i];
           }
-          shell_printf(" ");
-          move_cursor_left(count + 1);
+          buf[bufwritten++] = ' ';
+          bufwritten += move_cursor_left(buf + bufwritten, count + 1);
+          buf[bufwritten] = 0;
+          shell_printf(buf);
 
           for(int i = cursor - 1; i < written - 1; i++) {
             buf[i] = buf[i + 1];
@@ -404,6 +474,7 @@ shell_readline(char buf[], size_t bufsize)
       continue;
     }
 
+    // Check overline
     if(written == bufsize - 1) {
       shell_bell();
       continue;
@@ -413,12 +484,17 @@ shell_readline(char buf[], size_t bufsize)
       shell_printf("%c", next);
       buf[written] = next;
     } else {
-      shell_printf("%c", next);
+      // NOTE: assume this is enough
+      char buf[1024];
+      int bufwritten = 0;
+      buf[bufwritten++] = next;
       int count = written - cursor;
       for(int i = 0; i < count; i++) {
-        shell_printf("%c", buf[cursor + i]);
+        buf[bufwritten++] = buf[cursor + i];
       }
-      move_cursor_left(count);
+      buf[bufwritten++] = '\b';
+      buf[bufwritten] = 0;
+      shell_printf(buf);
 
       for(int i = written; i > cursor; i--) {
         buf[i] = buf[i - 1];

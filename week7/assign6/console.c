@@ -271,7 +271,7 @@ console_printf(const char *format, ...)
 {
   int result = 0;
 
-  // NOTE: Assume we never get overflow
+  // NOTE: assume this is enough
   char buf[1024];
 
   va_list ap;
