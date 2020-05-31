@@ -95,6 +95,7 @@ $ http-server -p 4000 _site
     - [Graphics primitives](#graphics-primitives)
     - [Fonts and text-drawing](#fonts-and-text-drawing)
     - [Console](#console)
+    - [Extension: Line and triangle drawing](#extension-line-and-triangle-drawing)
 - [ARM Tips](#arm-tips)
 - [GCC Tips](#gcc-tips)
   - [`-mpoke-function-name`](#-mpoke-function-name)
@@ -1408,6 +1409,35 @@ typedef struct {
 `shell` uses **characters** to control our `console`. The job of `console` is to display characters and the cursor.
 
 Check the final code [console.c](./week7/assign6/console.c).
+
+#### Extension: Line and triangle drawing
+
+Line drawing is actually a very complex topic. It took me several days to get into this field.
+
+There are many algorithmes for this topic and understanding them is not an easy task.
+
+we have
+
+- Bresenham's line algorithm
+- Samping
+- Super sampling
+- SDF
+
+If you are interested in this topic and want to see some real code I highly recommend this repo [miloyip/line](https://github.com/miloyip/line).
+
+In the end, I use a method called *AABB SDF (Axix Aligned Bounding Box Signed Distance Field)* to draw anti-aliased lines with **arbitrary width**.
+
+The basic idea of this method is that for each line we are going to draw, first we get the axis aligned bounding box of the line. Then for each pixel in the bounding pixel we calculate whether the pixel is in the line or not and based on that information we can decide the color of the pixel.
+
+For drawing triangle, the critical part is to check whether a point is in the triangle. We use a simple fact that:
+
+> If the point P is in the triagnle ABC, then the area of three sub triangles PAB, PBC, PAC must be equal to the area of ABC.
+
+Check all the details in the [gl.c](./week7/assign6/gl.c).
+
+Now we can use our two methods to draw a beautiful hexagram:
+
+![](./assets/hexagram.jpeg)
 
 ## ARM Tips
 

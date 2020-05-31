@@ -6,6 +6,24 @@
 
 #define WIDTH 1920
 #define HEIGHT 1080
+#define Pi 3.1415926
+#define Minimum(a, b) ((a) < (b) ? (a) : (b))
+
+void gl_draw_line_with_width(int x1,
+  int y1,
+  int x2,
+  int y2,
+  float line_width,
+  color_t c);
+
+void gl_draw_triangle_with_width(int x1,
+  int y1,
+  int x2,
+  int y2,
+  int x3,
+  int y3,
+  float line_width,
+  color_t c);
 
 void
 test_fb_singlebuffer()
@@ -32,7 +50,7 @@ test_fb_singlebuffer()
 void
 test_fb_doublebuffer()
 {
-  fb_init(1920, 1080, 4, FB_DOUBLEBUFFER);
+  fb_init(WIDTH, HEIGHT, 4, FB_DOUBLEBUFFER);
 
   int pitch = fb_get_pitch() / 4;
   int width = fb_get_width();
@@ -58,7 +76,7 @@ test_fb_doublebuffer()
 void
 test_gl_simple(void)
 {
-  gl_init(1920, 1080, GL_SINGLEBUFFER);
+  gl_init(WIDTH, HEIGHT, GL_SINGLEBUFFER);
 
   gl_clear(GL_WHITE);
 
@@ -75,7 +93,7 @@ test_gl_simple(void)
 void
 test_gl_doublebuffer(void)
 {
-  gl_init(1920 / 2, 1080 / 2, GL_DOUBLEBUFFER);
+  gl_init(WIDTH / 2, HEIGHT / 2, GL_DOUBLEBUFFER);
 
   {
     gl_clear(GL_WHITE);
@@ -130,8 +148,8 @@ inside_mandelbrot_set(float init_a, float init_b)
 void
 test_gl_draw_mandelbrot(void)
 {
-  int width = 1920;
-  int height = 1080;
+  int width = WIDTH;
+  int height = HEIGHT;
 
   gl_init(width, height, GL_SINGLEBUFFER);
 
@@ -155,8 +173,8 @@ test_gl_draw_mandelbrot(void)
 void
 test_gl_draw_font(void)
 {
-  int width = 1920 / 4;
-  int height = 1080 / 4;
+  int width = WIDTH / 4;
+  int height = HEIGHT / 4;
 
   gl_init(width, height, GL_SINGLEBUFFER);
 
@@ -230,6 +248,80 @@ test_console(void)
 }
 
 void
+test_extension_drawing(void)
+{
+  int width = WIDTH / 4;
+  int height = HEIGHT / 4;
+
+  gl_init(width, height, GL_SINGLEBUFFER);
+
+  gl_clear(GL_WHITE);
+
+  // Basic line
+  gl_draw_line(100, 50, 250, 40, GL_BLACK);
+
+  // Clipped line
+  gl_draw_line(width - 50, 50, width + 50, 30, GL_BLACK);
+
+  // Basic triangle
+  gl_draw_triangle(10, 10, 50, 80, 80, 60, GL_YELLOW);
+
+  // Clipped triangle
+  gl_draw_triangle(width - 50, 30, width + 50, 40, width + 20, 60, GL_YELLOW);
+}
+
+void
+test_extension_draw_hexagram(void)
+{
+  int width = WIDTH / 4;
+  int height = HEIGHT / 4;
+
+  gl_init(width, height, GL_SINGLEBUFFER);
+
+  gl_clear(GL_WHITE);
+
+  int cx = width / 2;
+  int cy = height / 2;
+
+  float r = (Minimum(width, height) - 20.0f) / 2.0f;
+  float t1 = r * 0.866025f;
+  float t2 = r * 0.5f;
+
+  // Clockwise, point1 ~ point6
+  int x1 = cx, y1 = cy - r;
+  int x2 = cx + t1, y2 = cy - t2;
+  int x3 = cx + t1, y3 = cy + t2;
+  int x4 = cx, y4 = cy + r;
+  int x5 = cx - t1, y5 = cy + t2;
+  int x6 = cx - t1, y6 = cy - t2;
+
+  color_t color = 0xffeae458;
+
+  // Hexagram
+  gl_draw_line_with_width(x1, y1, x3, y3, 3.0f, color);
+  gl_draw_line_with_width(x1, y1, x5, y5, 3.0f, color);
+  gl_draw_line_with_width(x2, y2, x4, y4, 3.0f, color);
+  gl_draw_line_with_width(x2, y2, x6, y6, 3.0f, color);
+  gl_draw_line_with_width(x3, y3, x5, y5, 3.0f, color);
+  gl_draw_line_with_width(x4, y4, x6, y6, 3.0f, color);
+
+  // Inner hexagram
+  r = r * 0.3;
+  t1 = r * 0.866025f;
+  t2 = r * 0.5f;
+
+  x1 = cx, y1 = cy - r;
+  x2 = cx + t1, y2 = cy - t2;
+  x3 = cx + t1, y3 = cy + t2;
+  x4 = cx, y4 = cy + r;
+  x5 = cx - t1, y5 = cy + t2;
+  x6 = cx - t1, y6 = cy - t2;
+
+  gl_draw_triangle(x1, y1, x3, y3, x5, y5, color);
+  gl_draw_triangle(x2, y2, x4, y4, x6, y6, color);
+}
+
+void
 main(void)
 {
   // test_fb_singlebuffer();
@@ -244,7 +336,11 @@ main(void)
 
   // test_gl_draw_font();
 
-  test_console();
+  // test_console();
+
+  // test_extension_drawing();
+
+  test_extension_draw_hexagram();
 
   uart_putchar(EOT);
 }

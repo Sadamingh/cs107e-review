@@ -1,4 +1,4 @@
-CFLAGS = -I$(CS107E)/include -g -Wall -Og -std=c99 -ffreestanding -mpoke-function-name -mapcs-frame -fno-omit-frame-pointer
+CFLAGS = -I$(CS107E)/include -g -Wall -Og -std=c99 -ffreestanding -mpoke-function-name -mapcs-frame -fno-omit-frame-pointer -fno-math-errno -fsingle-precision-constant -ffast-math
 LDFLAGS = -nostdlib -T memmap -L/usr/local/Cellar/arm-none-eabi/4.8.3-cs170e/lib/gcc/arm-none-eabi/4.8.3 -L$(CS107E)/lib
 
 .PRECIOUS: %.elf

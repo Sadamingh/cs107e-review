@@ -1,9 +1,13 @@
 #include <gl.h>
 #include <font.h>
 #include <malloc.h>
+#include <math.h>
 
-#define MINIMUM(a, b) (a < b ? a : b)
-#define MAXIMUM(a, b) (a > b ? a : b)
+#define Minimum(a, b) ((a) < (b) ? (a) : (b))
+#define Minimum3(a, b, c) ((a) < (b) ? Minimum(a, c) : Minimum(b, c))
+#define Maximum(a, b) ((a) > (b) ? (a) : (b))
+#define Maximum3(a, b, c) ((a) > (b) ? Maximum(a, c) : Maximum(b, c))
+#define Abs(a) ((a) < 0 ? -(a) : (a))
 
 static void *font_buffer;
 static gl_mode_t gl_mode;
@@ -73,8 +77,8 @@ gl_draw_rect(int start_x, int start_y, int w, int h, color_t c)
 {
   int height = gl_get_height();
   int width = gl_get_width();
-  int max_x = MINIMUM(start_x + w, width);
-  int max_y = MINIMUM(start_y + h, height);
+  int max_x = Minimum(start_x + w, width);
+  int max_y = Minimum(start_y + h, height);
 
   if(start_x < 0) {
     start_x = 0;
@@ -121,14 +125,14 @@ gl_draw_char(int start_x, int start_y, int ch, color_t c)
   if(start_x >= buffer_width || start_y >= buffer_height)
     return;
 
-  int max_x = MINIMUM(start_x + font_width, buffer_width);
-  int max_y = MINIMUM(start_y + font_height, buffer_height);
+  int max_x = Minimum(start_x + font_width, buffer_width);
+  int max_y = Minimum(start_y + font_height, buffer_height);
 
   if(max_x <= 0 || max_y <= 0)
     return;
 
-  for(int y = MAXIMUM(start_y, 0); y < max_y; y++) {
-    for(int x = MAXIMUM(start_x, 0); x < max_x; x++) {
+  for(int y = Maximum(start_y, 0); y < max_y; y++) {
+    for(int x = Maximum(start_x, 0); x < max_x; x++) {
       int pixel = font_buffer_arr[y - start_y][x - start_x];
       if(pixel == 0xff) {
         gl_draw_pixel(x, y, c);
@@ -148,4 +152,118 @@ gl_draw_string(int start_x, int start_y, const char *str, color_t c)
     p++;
     x += font_width;
   }
+}
+
+float
+rect_sdf(float px, float py, float ax, float ay, float bx, float by, float r)
+{
+  float pax = px - ax, pay = py - ay, bax = bx - ax, bay = by - ay;
+  float lengthSq = bax * bax + bay * bay;
+  float dot = pax * bax + pay * bay;
+
+  if(dot < 0 || dot > lengthSq) {
+    return 0.5;
+  }
+
+  return ((pax * pax + pay * pay) - (dot * dot) / lengthSq) - r * r;
+}
+
+void
+alphablend(int x, int y, float alpha, color_t c)
+{
+  int pitch = fb_get_pitch();
+  unsigned char *p = (unsigned char *)fb_get_draw_buffer() + pitch * y + x * 4;
+
+  unsigned char r = (c >> 16) & 0xff;
+  unsigned char g = (c >> 8) & 0xff;
+  unsigned char b = (c >> 0) & 0xff;
+
+  // B
+  p[0] = (unsigned char)((float)p[0] * (1 - alpha) + (float)b * alpha);
+  // G
+  p[1] = (unsigned char)((float)p[1] * (1 - alpha) + (float)g * alpha);
+  // R
+  p[2] = (unsigned char)((float)p[2] * (1 - alpha) + (float)r * alpha);
+}
+
+// Outside pixels are clipped
+void
+gl_draw_line_with_width(int x1,
+  int y1,
+  int x2,
+  int y2,
+  float line_width,
+  color_t c)
+{
+  int width = gl_get_width();
+  int height = gl_get_height();
+
+  int start_x = Maximum(Minimum(x1, x2) - line_width / 2, 0);
+  int end_x = Minimum(Maximum(x1, x2) + line_width / 2, width - 1);
+  int start_y = Maximum(Minimum(y1, y2) - line_width / 2, 0);
+  int end_y = Minimum(Maximum(y1, y2) + line_width / 2, height - 1);
+  for(int y = start_y; y <= end_y; y++)
+    for(int x = start_x; x <= end_x; x++) {
+      float sdf = rect_sdf(x, y, x1, y1, x2, y2, line_width / 2);
+      alphablend(x, y, Maximum(Minimum(0.5f - sdf, 1.0f), 0.0f), c);
+    }
+}
+
+void
+gl_draw_line(int x1, int y1, int x2, int y2, color_t c)
+{
+  gl_draw_line_with_width(x1, y1, x2, y2, 1.0f, c);
+}
+
+float
+triangle_area(int x1, int y1, int x2, int y2, int x3, int y3)
+{
+  float result = (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)) / 2.0f;
+
+  return Abs(result);
+}
+
+int
+inside_triangle(int x, int y, int x1, int y1, int x2, int y2, int x3, int y3)
+{
+  float a = triangle_area(x1, y1, x2, y2, x3, y3);
+  float a1 = triangle_area(x, y, x2, y2, x3, y3);
+  float a2 = triangle_area(x1, y1, x, y, x3, y3);
+  float a3 = triangle_area(x1, y1, x2, y2, x, y);
+
+  return Abs(a1 + a2 + a3 - a) < 0.0001;
+}
+
+void
+gl_draw_triangle_with_width(int x1,
+  int y1,
+  int x2,
+  int y2,
+  int x3,
+  int y3,
+  float line_width,
+  color_t c)
+{
+  int width = gl_get_width();
+  int height = gl_get_height();
+  gl_draw_line_with_width(x1, y1, x2, y2, line_width, c);
+  gl_draw_line_with_width(x1, y1, x3, y3, line_width, c);
+  gl_draw_line_with_width(x2, y2, x3, y3, line_width, c);
+
+  int start_x = Maximum(Minimum3(x1, x2, x3), 0);
+  int end_x = Minimum(Maximum3(x1, x2, x3), width - 1);
+  int start_y = Maximum(Minimum3(y1, y2, y3), 0);
+  int end_y = Minimum(Maximum3(y1, y2, y3), height - 1);
+  for(int y = start_y; y <= end_y; y++)
+    for(int x = start_x; x <= end_x; x++) {
+      if(inside_triangle(x, y, x1, y1, x2, y2, x3, y3)) {
+        gl_draw_pixel(x, y, c);
+      }
+    }
+}
+
+void
+gl_draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, color_t c)
+{
+  gl_draw_triangle_with_width(x1, y1, x2, y2, x3, y3, 1.0f, c);
 }
