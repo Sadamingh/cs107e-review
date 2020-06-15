@@ -40,7 +40,7 @@ static struct {
 
 static color_t BG_COLOR = GL_BLACK;
 static color_t CURSOR_COLOR = 0xff444444;
-static color_t TEXT_COLOR = GL_GREEN;
+static color_t TEXT_COLOR = GL_BLUE;
 static color_t PADDING_COLOR = 0xff2c3e4f;
 
 void

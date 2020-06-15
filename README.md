@@ -4,7 +4,7 @@
   </h1>
 </div>
 
-My study notes of the awesome course CS107E (Winter 2020).
+My study notes of the awesome course CS107E (Winter 2019).
 
 I have bundled all the material inside `_site` and `_resource` dirs because the course is keep going and keep chaning.
 
@@ -97,6 +97,8 @@ $ http-server -p 4000 _site
     - [Console](#console)
     - [Extension: Line and triangle drawing](#extension-line-and-triangle-drawing)
   - [Interrupts](#interrupts)
+- [Week 8: Interrupts, continued](#week-8-interrupts-continued)
+  - [Lab 7: Raspberry Pi, Interrupted](#lab-7-raspberry-pi-interrupted)
 - [Raspberry Pi Tips](#raspberry-pi-tips)
 - [ARM Tips](#arm-tips)
   - [Disassemble object file](#disassemble-object-file)
@@ -1492,6 +1494,19 @@ ARM processor modes:
 
 ARM interrupt table has just one instruction per interrupt type. Use that instruction to **vector** to code elsewhere.
 
+ARM Interrupts:
+
+| Address | Exception | Mode |
+| :-: | :-: | :-: |
+| 0x00000000 | Reset | Supervisor |
+| 0x00000004 | Undefined Instruction | Undefined |
+| 0x00000008 | Software Interrupt (SWI) | Supervisor |
+| 0x0000000C | Prefetch Abort | Abort |
+| 0x00000010 | Data Abort | Abort |
+| 0x00000014 | ... | ... |
+| 0x00000018 | **IRQ (Interrupt)** | IRQ |
+| 0x0000001C | FIQ (Fast Interrupt) | IRQ |
+
 When an external event triggers a hardware interrupt, processor responses:
 
 - Complete current instruction
@@ -1499,6 +1514,27 @@ When an external event triggers a hardware interrupt, processor responses:
 - Further interrupts disabled until exit this mode
 - Force pc address 0x18 (index 6 in vector table, IRQ)
 - Software takes over
+
+## Week 8: Interrupts, continued
+
+Interrupt checklist:
+
+- Initialize interrupt module
+- Enable detection of desired kind of event
+- Write handler function to process event
+- Attach handler to interrupt source
+- Globally enable interrupts
+
+Every interrupt starts with same actions: **Executes instruction at vectors[IRQ] which jumps to `interrupt_asm`, which calls C function `interrupt_dispatch`**.
+
+Preemption and safety is very hard, has lots of bugs.
+
+Two simple answers
+
+1. Use simple, safe data structures - write once, but not always possible
+2. Otherwise, temporarily disable interrupts - always works, but easy to forget
+
+### Lab 7: Raspberry Pi, Interrupted
 
 ## Raspberry Pi Tips
 
