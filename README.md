@@ -99,6 +99,11 @@ $ http-server -p 4000 _site
   - [Interrupts](#interrupts)
 - [Week 8: Interrupts, continued](#week-8-interrupts-continued)
   - [Lab 7: Raspberry Pi, Interrupted](#lab-7-raspberry-pi-interrupted)
+    - [Review interrupts code](#review-interrupts-code)
+    - [Set up a button circuit](#set-up-a-button-circuit)
+    - [Write an interrupt handler](#write-an-interrupt-handler)
+    - [Use a ring buffer queue](#use-a-ring-buffer-queue)
+    - [Need for speed](#need-for-speed)
 - [Raspberry Pi Tips](#raspberry-pi-tips)
 - [ARM Tips](#arm-tips)
   - [Disassemble object file](#disassemble-object-file)
@@ -1535,6 +1540,169 @@ Two simple answers
 2. Otherwise, temporarily disable interrupts - always works, but easy to forget
 
 ### Lab 7: Raspberry Pi, Interrupted
+
+#### Review interrupts code
+
+**Q:** When installing the vector table, `interrupts_init` copies eight instructions plus two additional words of data. What are those additional words and why is it essential that they are copied along with the table? The existing code copies the information using an explicit loop. This could instead be a single call to memcpy. What would be the correct arguments to memcpy to do the equivalent copy task?
+
+**A:** Those additional words store memory address of interrupt handlers, `abort_asm` and `interrupt_asm`.
+
+They are essential because interrupt vectors need to load handler address from them.
+
+Use `memcpy` to do the cope: `memcpy(_PRI_INTERRUPT_VECTOR_BASE, _vectors, 8 * 10)`
+
+**Q:** How does the private helper `vector_table_is_installed` verify that initialization was successful? Find where this helper is used. What client oversight is it attempting to defend against?
+
+**A:** By checking whether some interrupt vector has correct value.
+
+Everytime when we want to attach a handler, it will check whether the vector table has been installed.
+
+**Q:** What piece of state needs to change to globally enable/disable interrupts?
+
+**A:** Bit 7 in CPSR register. Set to 0 to enable interrupt, 1 to disable interrupt.
+
+**Q:** The supervisor stack is located at 0x8000000 and configured as one of the first instructions executed in `_start`. Where is the interrupt stack located and when it is configured? A different approach would be to configure the interrupt stack at program start along with the supervisor stack, but doing so then would require temporarily changing to interrupt mode – why is that switch needed?
+
+**A:** `interrupt_asm` function configure interrupt stack to `0x8000`.
+
+Because `sp` in a banked register, it refers to different underlying register in different modes.
+
+**Q:** How is a function “attached” as a handler for an interrupt source? If multiple handlers are attached to the same source, how does the dispatch operation determine which one processes the interrupt? What is the consequence if no handler is found to process it?
+
+**A:** When we add a handler, we simply store the handelr and its source into the `handlers` array.
+
+If a handler returns true, this indicates interrupt has been processed.
+
+Nothing happens if no handler is found to process an interrupt.
+
+#### Set up a button circuit
+
+**Q:** If you click the button multiple times in quick succession, some of the presses are missed. You get neither a printed + nor a screen redraw. Why does that happen?
+
+**A:** Because CPU is busy drawing our screen so the button checking code doesn't have chance to run and this makes us miss some button presses.
+
+#### Write an interrupt handler
+
+**Q:** The variable gCount must be declared `volatile`. Why? Can the compiler tell, by looking at only this file, how control flows between main and the interrupt handler? Will the compiler generate different code if volatile than without it? Will the program behave differently? Test it both ways and find out!
+
+**A:** If gCount is not volatile, the generated code will not evaluate the if condition every time in the loop. Actually, if the first time evaluation of the loop condition gets false, it will never evaluate it again and this will cause an infinite empty loop.
+
+Pay attention to the assembly code at `0x82cc`.
+
+```
+00008274 <main>:
+    8274: e1a0c00d  mov ip, sp
+    8278: e92dd830  push  {r4, r5, fp, ip, lr, pc}
+    827c: e24cb004  sub fp, ip, #4
+    8280: eb0003f3  bl  9254 <gpio_init>
+    8284: eb000bfd  bl  b280 <uart_init>
+    8288: e3a00d0a  mov r0, #640  ; 0x280
+    828c: e3a01e1e  mov r1, #480  ; 0x1e0
+    8290: e3a02000  mov r2, #0
+    8294: eb00002b  bl  8348 <gl_init>
+    8298: eb000648  bl  9bc0 <interrupts_init>
+    829c: ebffffb4  bl  8174 <configure_button>
+    82a0: eb0006b9  bl  9d8c <interrupts_global_enable>
+    82a4: ebffff59  bl  8010 <rb_new>
+    82a8: e59f5020  ldr r5, [pc, #32] ; 82d0 <main+0x5c>
+    82ac: e3a03000  mov r3, #0
+    82b0: e5850008  str r0, [r5, #8]
+    82b4: ea000001  b 82c0 <main+0x4c>
+    82b8: ebffffbe  bl  81b8 <redraw>
+    82bc: e1a03004  mov r3, r4
+    82c0: e5954000  ldr r4, [r5]
+    82c4: e1540003  cmp r4, r3
+    82c8: 1afffffa  bne 82b8 <main+0x44>
+    82cc: eafffffe  b 82cc <main+0x58>
+    82d0: 0000e850  andeq lr, r0, r0, asr r8
+    82d4: 70617773  rsbvc r7, r1, r3, ror r7
+    82d8: 746e695f  strbtvc r6, [lr], #-2399  ; 0x95f
+    82dc: 00000000  andeq r0, r0, r0
+    82e0: ff00000c      ; <UNDEFINED> instruction: 0xff00000c
+```
+
+The compiler can't know that control will flow to interrupt handlers. It has no way to figure that out.
+
+**Q:** Now, edit your handler to comment out the step that clears the event. Compile and run the program and see how this changes the behavior. What changes and why?
+
+**A:** The interrupt will be continuously triggered.
+
+#### Use a ring buffer queue
+
+**Q:** Why is the significance of the return value from `rb_dequeue`? Why is it essential to pay attention to that return value?
+
+**A:** The return value of `rb_dequeue` tells whether the queue is empty. If the return value is false then we shouldn't do anything because the queue is emtpy.
+
+**Q:** Why might you want the handler to enqueue and return instead of doing the actual task (e.g. redraw) directly in the handler?
+
+**A:** We want to keep the interrupt handler as quick as possible because CPU disables further interrupts in interrupt mode. If interrupt handlers take too long to process, we will miss many interrupts.
+
+**Q:** With this change, is it now necessary for gCount to be declared volatile? Does the ring buffer need to be declared volatile? Why or why not?
+
+**A:** It's unnecessary for gCount to be declared volatile.
+
+Based on my experient, I found that the ring buffer needn't to be declared volatile either.
+
+#### Need for speed
+
+> Does changing the order the pixels are accessed make a difference, i.e. instead of looping row by column, what if you loop column by row?
+
+Actually it does. I found a very strange result: Looping column by row is slightly faster than looping row by column.
+
+```c
+// looping row by column
+// 188602 ticks
+for(int y = 0; y < height; y++) {
+  for(int x = 0; x < width; x++) {
+    arr[y][x] = color;
+  }
+}
+
+// looping column by row
+// 186712 ticks
+for(int x = 0; x < width; x++) {
+  for(int y = 0; y < height; y++) {
+    arr[y][x] = color;
+  }
+}
+```
+
+I don't know why????
+
+Looping column by row is definitely more unfriendly to cache. How come it runs faster?
+
+Here are results of each modifiction:
+
+- initial version: 1224996
+- move unnecessary function calls outside of the loop: 1025915
+- fill buffer directly instead of calling `gl_draw_pixel`: 188602
+- loop column by row: 186712
+- loop over pixels as a 1-d aray: 166351
+- use a pointer `*p++ = ...` instead of `arr[index] = ...`: 148687
+- `-Og`: 40875
+- `-Ofast`: 38932
+- `-O2`: 38928
+- use a decrementing loop: 25091
+
+> How big of an improvement were you able to make overall? Where did you get the biggest bank for your buck?
+
+From `1224996` to `25091`, that's 48.82x faster.
+
+Optimizing out `gl_draw_pixel` gives the biggest gain.
+
+> It is possible to gain more than a 1000x speedup over the redraw0 function!
+
+I don't know how to do that???? In my opinion, current assembly code is as concise as possible.
+
+Maybe some bulk storage operation????
+
+```
+...
+2c0: subs  r4, r4, #1
+2c4: str r5, [r0], #4
+2c8: bne 2c0 <redraw6+0x24>
+...
+```
 
 ## Raspberry Pi Tips
 
