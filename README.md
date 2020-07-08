@@ -8,7 +8,7 @@ My study notes of the awesome course [CS107E](http://cs107e.github.io/) (Winter 
 
 Since the course is keeping going and keeping changing, the notes here may not correspond with the latest course material.
 
-To follow along the notes, you can use the bundled course version [winter 2019](https://cjting.me/cs107e/).
+To follow along the notes, you can use the bundled course version [winter 2019](http://cs107e.cjting.me) (based on `1fc22e4` of cs107e repo).
 
 ## Setup
 
